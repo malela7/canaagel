@@ -9,6 +9,15 @@ export default function InventoryPage() {
   const [paperBags, setPaperBags] = useState([]);
 
   const [milkTypeName, setMilkTypeName] = useState("");
+  const PACK_SIZE_OPTIONS = [
+    { label: "1L",   litres: "1" },
+    { label: "1.5L", litres: "1.5" },
+    { label: "2L",   litres: "2" },
+    { label: "3L",   litres: "3" },
+    { label: "5L",   litres: "5" },
+    { label: "10L",  litres: "10" },
+    { label: "20L",  litres: "20" },
+  ];
   const [packSizeForm, setPackSizeForm] = useState({ label: "", litres: "" });
   const [priceForm, setPriceForm] = useState({ milk_type: "", pack_size: "", amount: "" });
 
@@ -67,10 +76,17 @@ export default function InventoryPage() {
           <h2 className="font-semibold">Pack Sizes</h2>
           {packSizes.map((p) => <div key={p.id} className="text-sm text-gray-600">{p.label} ({p.litres}L)</div>)}
           <div className="flex gap-2">
-            <input className="border rounded px-2 py-1 flex-1" placeholder="Label e.g. 1L"
-              value={packSizeForm.label} onChange={(e) => setPackSizeForm({ ...packSizeForm, label: e.target.value })} required />
-            <input className="border rounded px-2 py-1 w-20" placeholder="Litres" type="number" step="0.001"
-              value={packSizeForm.litres} onChange={(e) => setPackSizeForm({ ...packSizeForm, litres: e.target.value })} required />
+            <select className="border rounded px-2 py-1 flex-1"
+              value={packSizeForm.label}
+              onChange={(e) => {
+                const opt = PACK_SIZE_OPTIONS.find(o => o.label === e.target.value);
+                setPackSizeForm(opt ? { label: opt.label, litres: opt.litres } : { label: "", litres: "" });
+              }} required>
+              <option value="">Select size</option>
+              {PACK_SIZE_OPTIONS.map((o) => (
+                <option key={o.label} value={o.label}>{o.label}</option>
+              ))}
+            </select>
             <button className="bg-green-600 text-white rounded px-3">Add</button>
           </div>
         </form>
