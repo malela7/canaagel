@@ -125,8 +125,11 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "https://superb-daifuku-27624d.netlify.app",
+]
 
 # --- M-Pesa Daraja ---
 MPESA_ENV = config("MPESA_ENV", default="sandbox")
