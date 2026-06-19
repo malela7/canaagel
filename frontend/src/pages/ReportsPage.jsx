@@ -9,20 +9,167 @@ const REPORTS = [
   { key: "bottles", label: "Bottles" },
 ];
 
+function SummaryStats({ items }) {
+  return (
+    <div className="flex gap-4 flex-wrap mb-4">
+      {items.map(({ label, value }) => (
+        <div key={label} className="bg-gray-50 border rounded px-4 py-2">
+          <div className="text-xs text-gray-500">{label}</div>
+          <div className="text-lg font-semibold">{value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Table({ columns, rows }) {
+  if (!rows.length) {
+    return <p className="text-sm text-gray-500">No records for this range.</p>;
+  }
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="text-left border-b">
+          {columns.map((c) => (
+            <th key={c.key} className="py-1 pr-4 font-medium text-gray-600">{c.label}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row, i) => (
+          <tr key={i} className="border-b last:border-0">
+            {columns.map((c) => (
+              <td key={c.key} className="py-1 pr-4">{c.render ? c.render(row) : row[c.key]}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function SalesReport({ data }) {
+  return (
+    <>
+      <SummaryStats items={[
+        { label: "Total Sales", value: data.total_sales },
+        { label: "Orders", value: data.order_count },
+      ]} />
+      <Table
+        rows={data.by_item}
+        columns={[
+          { key: "milk_type__name", label: "Milk Type" },
+          { key: "pack_size__label", label: "Pack Size" },
+          { key: "total_quantity", label: "Quantity" },
+          { key: "total_revenue", label: "Revenue" },
+        ]}
+      />
+    </>
+  );
+}
+
+function DebtReport({ data }) {
+  return (
+    <>
+      <SummaryStats items={[{ label: "Total Debt", value: data.total_debt }]} />
+      <Table
+        rows={data.customers}
+        columns={[
+          { key: "name", label: "Customer" },
+          { key: "phone_number", label: "Phone" },
+          { key: "debt_balance", label: "Debt" },
+        ]}
+      />
+    </>
+  );
+}
+
+function PaperBagsReport({ data }) {
+  return (
+    <>
+      <SummaryStats items={[
+        { label: "Bought", value: data.bought },
+        { label: "Used", value: data.used },
+      ]} />
+      <Table
+        rows={data.remaining}
+        columns={[
+          { key: "label", label: "Pack Size" },
+          { key: "quantity", label: "Remaining" },
+          { key: "is_low", label: "Low Stock", render: (r) => (r.is_low ? "Yes" : "No") },
+        ]}
+      />
+    </>
+  );
+}
+
+function SuppliersReport({ data }) {
+  return (
+    <>
+      <SummaryStats items={[{ label: "Total Cost", value: data.total_cost }]} />
+      <Table
+        rows={data.by_supplier}
+        columns={[
+          { key: "supplier__name", label: "Supplier" },
+          { key: "kind", label: "Kind" },
+          { key: "total_quantity", label: "Quantity" },
+          { key: "total_cost", label: "Cost" },
+        ]}
+      />
+    </>
+  );
+}
+
+function BottlesReport({ data }) {
+  return (
+    <>
+      <SummaryStats items={[{ label: "Total Bottles Out", value: data.total_bottles_out }]} />
+      <Table
+        rows={data.customers}
+        columns={[
+          { key: "name", label: "Customer" },
+          { key: "bottles_out", label: "Bottles Out" },
+        ]}
+      />
+    </>
+  );
+}
+
+const REPORT_VIEWS = {
+  sales: SalesReport,
+  debt: DebtReport,
+  "paper-bags": PaperBagsReport,
+  suppliers: SuppliersReport,
+  bottles: BottlesReport,
+};
+
 export default function ReportsPage() {
   const [active, setActive] = useState("sales");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const load = async (key = active) => {
     setActive(key);
-    const params = {};
-    if (from) params.date_from = from;
-    if (to) params.date_to = to;
-    const { data } = await api.get(`/reports/${key}/`, { params });
-    setData(data);
+    setLoading(true);
+    setError(null);
+    try {
+      const params = {};
+      if (from) params.start = from;
+      if (to) params.end = to;
+      const { data } = await api.get(`/reports/${key}/`, { params });
+      setData(data);
+    } catch (e) {
+      setError("Failed to load report. Please try again.");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const ReportView = REPORT_VIEWS[active];
 
   return (
     <div className="space-y-4">
@@ -50,7 +197,12 @@ export default function ReportsPage() {
       </div>
 
       <div className="bg-white shadow rounded p-4">
-        <pre className="text-sm whitespace-pre-wrap">{data ? JSON.stringify(data, null, 2) : "Select a report and click Run."}</pre>
+        {loading && <p className="text-sm text-gray-500">Loading...</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {!loading && !error && data && ReportView && <ReportView data={data} />}
+        {!loading && !error && !data && (
+          <p className="text-sm text-gray-500">Select a report and click Run.</p>
+        )}
       </div>
     </div>
   );
