@@ -16,10 +16,13 @@ class PackSizeSerializer(serializers.ModelSerializer):
 
 
 class PriceSerializer(serializers.ModelSerializer):
+    milk_type_name = serializers.CharField(source="milk_type.name", read_only=True)
+    pack_size_label = serializers.CharField(source="pack_size.label", read_only=True)
+
     class Meta:
         model = Price
         fields = [
-            "id", "milk_type", "pack_size", "amount",
+            "id", "milk_type", "milk_type_name", "pack_size", "pack_size_label", "amount",
             "is_current", "valid_from", "valid_to",
         ]
         read_only_fields = ["is_current", "valid_from", "valid_to"]
@@ -56,11 +59,13 @@ class SetCustomerPriceSerializer(serializers.Serializer):
 
 class StockSerializer(serializers.ModelSerializer):
     is_low = serializers.BooleanField(read_only=True)
+    milk_type_name = serializers.CharField(source="milk_type.name", read_only=True)
+    pack_size_label = serializers.CharField(source="pack_size.label", read_only=True)
 
     class Meta:
         model = Stock
         fields = [
-            "id", "milk_type", "pack_size", "quantity",
+            "id", "milk_type", "milk_type_name", "pack_size", "pack_size_label", "quantity",
             "low_stock_threshold", "is_low",
         ]
 

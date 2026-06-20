@@ -38,7 +38,9 @@ export default function EmployeesPage() {
     }
   };
 
-  const togglePermission = async (employee, flag) => {
+  const togglePermission = async (employee, flag, label) => {
+    const turningOff = !!employee.permissions[flag];
+    if (turningOff && !window.confirm(`Remove "${label}" access from ${employee.username}?`)) return;
     const updated = { ...employee.permissions, [flag]: !employee.permissions[flag] };
     await api.patch(`/auth/employees/${employee.id}/`, { permissions: updated });
     load();
@@ -49,14 +51,26 @@ export default function EmployeesPage() {
       <h1 className="text-xl font-bold">Employees</h1>
 
       <form onSubmit={handleCreate} className="bg-white shadow rounded p-4 grid grid-cols-2 gap-3">
-        <input className="border rounded px-3 py-2" placeholder="Username" required
-          value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-        <input type="password" className="border rounded px-3 py-2" placeholder="Password" required
-          value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-        <input className="border rounded px-3 py-2" placeholder="First name"
-          value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
-        <input className="border rounded px-3 py-2" placeholder="Last name"
-          value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Username</label>
+          <input className="border rounded px-3 py-2 w-full" placeholder="e.g. jkamau" required
+            value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Password</label>
+          <input type="password" className="border rounded px-3 py-2 w-full" placeholder="Set a password" required
+            value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">First name</label>
+          <input className="border rounded px-3 py-2 w-full" placeholder="e.g. James"
+            value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Last name</label>
+          <input className="border rounded px-3 py-2 w-full" placeholder="e.g. Kamau"
+            value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+        </div>
 
         <div className="col-span-2 grid grid-cols-2 gap-1">
           {PERMS.map(([flag, label]) => (
@@ -80,7 +94,7 @@ export default function EmployeesPage() {
               {PERMS.map(([flag, label]) => (
                 <label key={flag} className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={!!emp.permissions?.[flag]}
-                    onChange={() => togglePermission(emp, flag)} />
+                    onChange={() => togglePermission(emp, flag, label)} />
                   {label}
                 </label>
               ))}

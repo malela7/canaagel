@@ -16,9 +16,12 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 class StandingOrderItemSerializer(serializers.ModelSerializer):
+    milk_type_name = serializers.CharField(source="milk_type.name", read_only=True)
+    pack_size_label = serializers.CharField(source="pack_size.label", read_only=True)
+
     class Meta:
         model = StandingOrderItem
-        fields = ["id", "customer", "milk_type", "pack_size", "quantity"]
+        fields = ["id", "customer", "milk_type", "milk_type_name", "pack_size", "pack_size_label", "quantity"]
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

@@ -75,29 +75,38 @@ export default function POSPage() {
         <div className="space-y-2">
           <label className="block text-sm font-medium">Items</label>
           {items.map((item, idx) => (
-            <div key={idx} className="flex gap-2 items-center">
-              <select
-                className="border rounded px-2 py-2 flex-1"
-                value={item.milk_type}
-                onChange={(e) => updateItem(idx, "milk_type", e.target.value)}
-              >
-                <option value="">Milk type</option>
-                {milkTypes.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-              <select
-                className="border rounded px-2 py-2 flex-1"
-                value={item.pack_size}
-                onChange={(e) => updateItem(idx, "pack_size", e.target.value)}
-              >
-                <option value="">Pack size</option>
-                {packSizes.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-              </select>
-              <input
-                type="number" step="0.01" min="0"
-                className="border rounded px-2 py-2 w-24"
-                value={item.quantity}
-                onChange={(e) => updateItem(idx, "quantity", e.target.value)}
-              />
+            <div key={idx} className="flex gap-2 items-end">
+              <div className="flex-1">
+                {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Milk type</label>}
+                <select
+                  className="border rounded px-2 py-2 w-full"
+                  value={item.milk_type}
+                  onChange={(e) => updateItem(idx, "milk_type", e.target.value)}
+                >
+                  <option value="">Select milk type</option>
+                  {milkTypes.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+              <div className="flex-1">
+                {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Pack size</label>}
+                <select
+                  className="border rounded px-2 py-2 w-full"
+                  value={item.pack_size}
+                  onChange={(e) => updateItem(idx, "pack_size", e.target.value)}
+                >
+                  <option value="">Select pack size</option>
+                  {packSizes.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+              </div>
+              <div className="w-24">
+                {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Quantity</label>}
+                <input
+                  type="number" step="0.01" min="0"
+                  className="border rounded px-2 py-2 w-full"
+                  value={item.quantity}
+                  onChange={(e) => updateItem(idx, "quantity", e.target.value)}
+                />
+              </div>
               {items.length > 1 && (
                 <button type="button" onClick={() => removeItem(idx)} className="text-red-600 px-2">
                   &times;

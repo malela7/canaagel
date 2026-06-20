@@ -9,7 +9,7 @@ const emptyForm = {
 export default function ShopsPage() {
   const [shops, setShops] = useState([]);
   const [form, setForm] = useState(emptyForm);
-  const [error, setError] = useState(null);
+  const [errors, setErrors] = useState([]);
   const [paymentAmounts, setPaymentAmounts] = useState({});
 
   const load = () => api.get("/shops/").then((r) => setShops(r.data.results || r.data));
@@ -18,7 +18,7 @@ export default function ShopsPage() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    setError(null);
+    setErrors([]);
     try {
       await api.post("/shops/", form);
       setForm(emptyForm);
@@ -35,14 +35,17 @@ export default function ShopsPage() {
           });
         };
         collect(data);
-        setError(messages.join(" | ") || "Could not register shop. Check the fields and try again.");
+        setErrors(messages.length ? messages : ["Could not register shop. Check the fields and try again."]);
       } else {
-        setError("Could not register shop. Check the fields and try again.");
+        setErrors(["Could not register shop. Check the fields and try again."]);
       }
     }
   };
 
-  const suspend = async (id) => { await api.post(`/shops/${id}/suspend/`); load(); };
+  const suspend = async (id, name) => {
+    if (!window.confirm(`Suspend "${name}"? They will lose access until reactivated.`)) return;
+    await api.post(`/shops/${id}/suspend/`); load();
+  };
   const activate = async (id) => { await api.post(`/shops/${id}/activate/`); load(); };
   const extendTrial = async (id) => { await api.post(`/shops/${id}/extend-trial/`); load(); };
   const recordPayment = async (id) => {
@@ -63,7 +66,11 @@ export default function ShopsPage() {
           <p className="text-sm text-gray-500">Add a new shop to your Milkshop SaaS account</p>
         </div>
 
-        {error && <div className="text-red-600 text-sm">{error}</div>}
+        {errors.length > 0 && (
+          <ul className="text-red-600 text-sm list-disc pl-5 space-y-0.5">
+            {errors.map((msg, i) => <li key={i}>{msg}</li>)}
+          </ul>
+        )}
 
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b pb-1">Shop details</h3>
@@ -143,16 +150,19 @@ export default function ShopsPage() {
                 {s.status === "SUSPENDED" || s.status === "EXPIRED" ? (
                   <button onClick={() => activate(s.id)} className="bg-green-600 text-white rounded px-3 py-1 text-sm">Activate</button>
                 ) : (
-                  <button onClick={() => suspend(s.id)} className="bg-red-600 text-white rounded px-3 py-1 text-sm">Suspend</button>
+                  <button onClick={() => suspend(s.id, s.name)} className="bg-red-600 text-white rounded px-3 py-1 text-sm">Suspend</button>
                 )}
                 <button onClick={() => extendTrial(s.id)} className="bg-blue-600 text-white rounded px-3 py-1 text-sm">Extend Trial</button>
               </div>
             </div>
-            <div className="flex gap-2 mt-2">
-              <input type="number" step="0.01" placeholder="Amount paid"
-                className="border rounded px-2 py-1 w-32"
-                value={paymentAmounts[s.id] || ""}
-                onChange={(e) => setPaymentAmounts((prev) => ({ ...prev, [s.id]: e.target.value }))} />
+            <div className="flex gap-2 mt-2 items-end">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Amount paid</label>
+                <input type="number" step="0.01" placeholder="e.g. 2000"
+                  className="border rounded px-2 py-1 w-32"
+                  value={paymentAmounts[s.id] || ""}
+                  onChange={(e) => setPaymentAmounts((prev) => ({ ...prev, [s.id]: e.target.value }))} />
+              </div>
               <button onClick={() => recordPayment(s.id)} className="bg-gray-700 text-white rounded px-3 py-1 text-sm">
                 Record Payment (auto-reactivates)
               </button>

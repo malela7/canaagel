@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import api from "../api/client";
+import SummaryStats from "../components/SummaryStats";
+import Table from "../components/Table";
 
 const REPORTS = [
   { key: "sales", label: "Sales" },
@@ -8,45 +10,6 @@ const REPORTS = [
   { key: "suppliers", label: "Suppliers" },
   { key: "bottles", label: "Bottles" },
 ];
-
-function SummaryStats({ items }) {
-  return (
-    <div className="flex gap-4 flex-wrap mb-4">
-      {items.map(({ label, value }) => (
-        <div key={label} className="bg-gray-50 border rounded px-4 py-2">
-          <div className="text-xs text-gray-500">{label}</div>
-          <div className="text-lg font-semibold">{value}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Table({ columns, rows }) {
-  if (!rows.length) {
-    return <p className="text-sm text-gray-500">No records for this range.</p>;
-  }
-  return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-left border-b">
-          {columns.map((c) => (
-            <th key={c.key} className="py-1 pr-4 font-medium text-gray-600">{c.label}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, i) => (
-          <tr key={i} className="border-b last:border-0">
-            {columns.map((c) => (
-              <td key={c.key} className="py-1 pr-4">{c.render ? c.render(row) : row[c.key]}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
 
 function SalesReport({ data }) {
   return (
