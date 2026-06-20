@@ -6,6 +6,7 @@ import { TouchableOpacity, Text, View, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import LoginScreen from "./src/screens/LoginScreen";
+import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
 import POSScreen from "./src/screens/POSScreen";
 import CustomersScreen from "./src/screens/CustomersScreen";
 import DeliveryScreen from "./src/screens/DeliveryScreen";
@@ -50,7 +51,10 @@ function RootNavigator() {
       {user ? (
         <Stack.Screen name="Main" component={MainStack} options={{ headerShown: false }} />
       ) : (
-        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: "Forgot password" }} />
+        </>
       )}
     </Stack.Navigator>
   );

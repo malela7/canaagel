@@ -10,7 +10,8 @@ from .models import Customer, Order, OrderItem
 
 @transaction.atomic
 def create_order(*, shop, customer, items, paper_bags_used=0, bottles_given=0,
-                  bottles_collected=0, created_by=None, is_walk_in=False):
+                  bottles_collected=0, created_by=None, is_walk_in=False,
+                  payment_method=Order.PaymentMethod.CASH):
     """
     items: list of dicts with keys milk_type, pack_size, quantity.
 
@@ -26,6 +27,7 @@ def create_order(*, shop, customer, items, paper_bags_used=0, bottles_given=0,
         bottles_given=bottles_given,
         bottles_collected=bottles_collected,
         created_by=created_by,
+        payment_method=payment_method,
     )
 
     total_amount = 0

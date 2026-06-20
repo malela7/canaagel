@@ -37,7 +37,7 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            "id", "customer", "is_walk_in", "total_amount", "payment_status",
+            "id", "customer", "is_walk_in", "total_amount", "payment_status", "payment_method",
             "paper_bags_used", "bottles_given", "bottles_collected",
             "created_by", "created_at", "cancelled_at", "items",
         ]
@@ -66,6 +66,7 @@ class CreateOrderSerializer(serializers.Serializer):
     paper_bags_used = serializers.IntegerField(default=0, min_value=0)
     bottles_given = serializers.IntegerField(default=0, min_value=0)
     bottles_collected = serializers.IntegerField(default=0, min_value=0)
+    payment_method = serializers.ChoiceField(choices=Order.PaymentMethod.choices, default=Order.PaymentMethod.CASH)
 
     def create(self, validated_data):
         request = self.context["request"]
@@ -78,6 +79,7 @@ class CreateOrderSerializer(serializers.Serializer):
             bottles_collected=validated_data["bottles_collected"],
             created_by=request.user,
             is_walk_in=validated_data["is_walk_in"],
+            payment_method=validated_data["payment_method"],
         )
 
 

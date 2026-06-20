@@ -5,6 +5,16 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import EmployeePermissions, User
 
 
+class PasswordResetRequestSerializer(serializers.Serializer):
+    username = serializers.CharField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    code = serializers.CharField(max_length=6)
+    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+
+
 class MilkshopTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):

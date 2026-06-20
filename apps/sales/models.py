@@ -80,6 +80,12 @@ class Order(models.Model):
         UNPAID = "UNPAID", "Unpaid"
         CANCELLED = "CANCELLED", "Cancelled"
 
+    class PaymentMethod(models.TextChoices):
+        CASH = "CASH", "Cash"
+        MPESA = "MPESA", "M-Pesa"
+        BANK = "BANK", "Bank"
+        OTHER = "OTHER", "Other"
+
     shop = models.ForeignKey(
         "shops.Shop", on_delete=models.CASCADE, related_name="orders"
     )
@@ -91,6 +97,9 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     payment_status = models.CharField(
         max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.UNPAID
+    )
+    payment_method = models.CharField(
+        max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.CASH
     )
 
     paper_bags_used = models.IntegerField(default=0)

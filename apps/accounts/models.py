@@ -1,5 +1,8 @@
+import random
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -56,3 +59,33 @@ class EmployeePermissions(models.Model):
 
     def __str__(self):
         return f"Permissions for {self.user.username}"
+
+
+class PasswordResetCode(models.Model):
+    """A 6-digit SMS OTP for self-serve password reset."""
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="password_reset_codes"
+    )
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["user", "code"])]
+
+    @classmethod
+    def generate(cls, user, ttl_minutes=10):
+        return cls.objects.create(
+            user=user,
+            code=f"{random.randint(0, 999999):06d}",
+            expires_at=timezone.now() + timezone.timedelta(minutes=ttl_minutes),
+        )
+
+    @property
+    def is_valid(self) -> bool:
+        return self.used_at is None and self.expires_at > timezone.now()
+
+    def __str__(self):
+        return f"Reset code for {self.user.username}"

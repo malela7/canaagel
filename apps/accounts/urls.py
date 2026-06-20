@@ -9,6 +9,8 @@ urlpatterns = [
     path("login/", views.MilkshopTokenObtainPairView.as_view(), name="login"),
     path("refresh/", TokenRefreshView.as_view(), name="refresh"),
     path("logout/", views.LogoutView.as_view(), name="logout"),
+    path("password-reset/request/", views.PasswordResetRequestView.as_view(), name="password-reset-request"),
+    path("password-reset/confirm/", views.PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
     path("me/", views.MeView.as_view(), name="me"),
     path("employees/", views.EmployeeViewSet.as_view({"get": "list", "post": "create"}), name="employee-list"),
     path(

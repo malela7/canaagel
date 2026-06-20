@@ -5,6 +5,7 @@ import RequireAuth from "./components/RequireAuth";
 import Layout from "./components/Layout";
 
 import LoginPage from "./pages/LoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import POSPage from "./pages/POSPage";
 import CustomersPage from "./pages/CustomersPage";
 import InventoryPage from "./pages/InventoryPage";
@@ -28,6 +29,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
           <Route element={<RequireAuth><Layout /></RequireAuth>}>
             <Route path="/" element={<HomeRedirect />} />
