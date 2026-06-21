@@ -7,6 +7,7 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [username, setUsername] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -58,7 +59,17 @@ export default function ForgotPasswordScreen({ navigation }) {
           <Text style={styles.label}>Reset code</Text>
           <TextInput style={styles.input} value={code} onChangeText={setCode} keyboardType="numeric" />
           <Text style={styles.label}>New password</Text>
-          <TextInput style={styles.input} value={newPassword} onChangeText={setNewPassword} secureTextEntry />
+          <View style={styles.passwordWrap}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={styles.showButton}>
+              <Text style={styles.showButtonText}>{showPassword ? "Hide" : "Show"}</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity style={styles.button} onPress={confirmReset} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Reset password</Text>}
           </TouchableOpacity>
@@ -83,4 +94,8 @@ const styles = StyleSheet.create({
   success: { color: "#166534", marginBottom: 12, textAlign: "center" },
   backLink: { marginTop: 16, alignItems: "center" },
   backLinkText: { color: "#2563eb", fontSize: 13 },
+  passwordWrap: { flexDirection: "row", alignItems: "center" },
+  passwordInput: { flex: 1 },
+  showButton: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 10 },
+  showButtonText: { color: "#2563eb", fontSize: 13, fontWeight: "500" },
 });

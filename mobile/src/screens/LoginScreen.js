@@ -6,6 +6,7 @@ export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +29,18 @@ export default function LoginScreen({ navigation }) {
       <Text style={styles.label}>Username</Text>
       <TextInput style={styles.input} value={username} onChangeText={setUsername} autoCapitalize="none" placeholder="e.g. imran" />
       <Text style={styles.label}>Password</Text>
-      <TextInput style={styles.input} value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
+      <View style={styles.passwordWrap}>
+        <TextInput
+          style={[styles.input, styles.passwordInput]}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+          placeholder="••••••••"
+        />
+        <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={styles.showButton}>
+          <Text style={styles.showButtonText}>{showPassword ? "Hide" : "Show"}</Text>
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")} style={styles.forgotLink}>
         <Text style={styles.forgotLinkText}>Forgot password?</Text>
       </TouchableOpacity>
@@ -49,4 +61,8 @@ const styles = StyleSheet.create({
   error: { color: "#dc2626", marginBottom: 12, textAlign: "center" },
   forgotLink: { alignItems: "flex-end", marginTop: 8 },
   forgotLinkText: { color: "#2563eb", fontSize: 13 },
+  passwordWrap: { flexDirection: "row", alignItems: "center" },
+  passwordInput: { flex: 1 },
+  showButton: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 10 },
+  showButtonText: { color: "#2563eb", fontSize: 13, fontWeight: "500" },
 });
