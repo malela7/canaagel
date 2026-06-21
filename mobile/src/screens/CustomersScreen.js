@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   form: { padding: 16, gap: 8 },
   title: { fontSize: 22, fontWeight: "bold", marginBottom: 8 },
   label: { fontSize: 13, fontWeight: "500", color: "#374151" },
-  input: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 6, padding: 8, backgroundColor: "#fff" },
+  input: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 6, padding: 8, backgroundColor: "#fff", color: "#111827" },
   fieldError: { color: "#dc2626", fontSize: 12 },
   pickerWrap: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 6, backgroundColor: "#fff" },
   button: { backgroundColor: "#16a34a", borderRadius: 6, padding: 12, alignItems: "center", marginTop: 4 },

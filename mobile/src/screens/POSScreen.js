@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: "600", marginTop: 12, marginBottom: 4 },
   meta: { fontSize: 12, color: "#6b7280" },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  input: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 6, padding: 8, backgroundColor: "#fff" },
+  input: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 6, padding: 8, backgroundColor: "#fff", color: "#111827" },
   pickerWrap: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 6, backgroundColor: "#fff" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 8 },
   tile: { width: "31%", borderWidth: 1, borderColor: "#d1d5db", borderRadius: 6, padding: 8, backgroundColor: "#fff", alignItems: "center" },
