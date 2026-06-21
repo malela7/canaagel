@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 
 export default function LoginScreen({ navigation }) {
@@ -37,8 +38,8 @@ export default function LoginScreen({ navigation }) {
           secureTextEntry={!showPassword}
           placeholder="••••••••"
         />
-        <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={styles.showButton}>
-          <Text style={styles.showButtonText}>{showPassword ? "Hide" : "Show"}</Text>
+        <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={styles.eyeButton}>
+          <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#6b7280" />
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")} style={styles.forgotLink}>
@@ -61,8 +62,7 @@ const styles = StyleSheet.create({
   error: { color: "#dc2626", marginBottom: 12, textAlign: "center" },
   forgotLink: { alignItems: "flex-end", marginTop: 8 },
   forgotLinkText: { color: "#2563eb", fontSize: 13 },
-  passwordWrap: { flexDirection: "row", alignItems: "center" },
-  passwordInput: { flex: 1 },
-  showButton: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 10 },
-  showButtonText: { color: "#2563eb", fontSize: 13, fontWeight: "500" },
+  passwordWrap: { position: "relative", justifyContent: "center" },
+  passwordInput: { paddingRight: 40 },
+  eyeButton: { position: "absolute", right: 10, height: "100%", justifyContent: "center" },
 });
