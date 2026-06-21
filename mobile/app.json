@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#16a34a"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "com.milkshopsaas.app",
       "adaptiveIcon": {
@@ -19,6 +21,18 @@
         "backgroundColor": "#16a34a"
       },
       "versionCode": 1
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f4d05d55-84d9-4afa-b793-633da092b8ba"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f4d05d55-84d9-4afa-b793-633da092b8ba"
+    },
+    "ios": {}
   }
 }
