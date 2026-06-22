@@ -29,6 +29,8 @@ export default function SubscriptionsReportPage() {
 
       <SummaryStats items={[
         { label: "Total Shops", value: data.total_shops },
+        { label: "Monthly Revenue", value: `KES ${data.monthly_revenue}` },
+        { label: "Expiring Soon", value: data.expiring_soon },
         ...statusEntries.map(([status, count]) => ({ label: status, value: count })),
       ]} />
 

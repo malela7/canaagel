@@ -86,10 +86,10 @@ export default function ForgotPasswordScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#f9fafb" },
-  title: { fontSize: 24, fontWeight: "bold", color: "#15803d", textAlign: "center", marginBottom: 24 },
+  title: { fontSize: 24, fontWeight: "bold", color: "#b45309", textAlign: "center", marginBottom: 24 },
   label: { fontSize: 14, fontWeight: "500", marginBottom: 4, marginTop: 8 },
   input: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 6, padding: 10, backgroundColor: "#fff", color: "#111827" },
-  button: { backgroundColor: "#16a34a", borderRadius: 6, padding: 14, alignItems: "center", marginTop: 20 },
+  button: { backgroundColor: "#d97706", borderRadius: 6, padding: 14, alignItems: "center", marginTop: 20 },
   buttonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
   error: { color: "#dc2626", marginBottom: 12, textAlign: "center" },
   success: { color: "#166534", marginBottom: 12, textAlign: "center" },

@@ -1,6 +1,8 @@
-from datetime import date
+from datetime import date, timedelta
 
+from django.db import models
 from django.db.models import Sum
+from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -160,8 +162,23 @@ class SubscriptionsReportView(APIView):
             for p in recent_payments
         ]
 
+        today = date.today()
+        month_start = today.replace(day=1)
+        monthly_revenue = SubscriptionPayment.objects.filter(
+            paid_at__date__gte=month_start, paid_at__date__lte=today,
+        ).aggregate(total=Sum("amount"))["total"] or 0
+
+        soon_cutoff = timezone.now() + timedelta(days=30)
+        expiring_soon = shops.filter(
+            status__in=[Shop.Status.TRIAL, Shop.Status.ACTIVE],
+        ).filter(
+            models.Q(trial_ends_at__lte=soon_cutoff) | models.Q(current_period_end__lte=soon_cutoff)
+        ).count()
+
         return Response({
             "shop_counts": counts,
             "total_shops": shops.count(),
+            "monthly_revenue": monthly_revenue,
+            "expiring_soon": expiring_soon,
             "recent_payments": payments_data,
         })

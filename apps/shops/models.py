@@ -14,6 +14,12 @@ class Shop(models.Model):
         SUSPENDED = "SUSPENDED", "Suspended"
         EXPIRED = "EXPIRED", "Expired"
 
+    class Plan(models.TextChoices):
+        TRIAL = "TRIAL", "Trial (Free)"
+        BASIC = "BASIC", "Basic"
+        STANDARD = "STANDARD", "Standard"
+        PREMIUM = "PREMIUM", "Premium"
+
     name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=20, blank=True)
     address = models.CharField(max_length=255, blank=True)
@@ -21,6 +27,8 @@ class Shop(models.Model):
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.TRIAL
     )
+    plan = models.CharField(max_length=20, choices=Plan.choices, default=Plan.TRIAL)
+    monthly_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     trial_ends_at = models.DateTimeField()
     current_period_end = models.DateTimeField(null=True, blank=True)
     suspended_at = models.DateTimeField(null=True, blank=True)

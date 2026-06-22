@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "../api/client";
 
 const emptyForm = {
-  shop_name: "", phone_number: "", monthly_fee: "",
+  shop_name: "", shop_phone_number: "", monthly_fee: "", plan: "TRIAL",
   owner_username: "", owner_password: "", owner_first_name: "", owner_last_name: "",
 };
 
@@ -85,7 +85,7 @@ export default function ShopsPage() {
               <label className="block text-xs text-gray-500 mb-1">Phone number *</label>
               <input className="border rounded px-3 py-2 w-full" placeholder="2547XXXXXXXX" required
                 autoComplete="off" name="shop_phone_field"
-                value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} />
+                value={form.shop_phone_number} onChange={(e) => setForm({ ...form, shop_phone_number: e.target.value })} />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Monthly subscription fee, KES *</label>
