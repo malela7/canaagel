@@ -6,7 +6,7 @@ import { TouchableOpacity, Text, View, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
-import { colors } from "./src/theme";
+import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
 import LoginScreen from "./src/screens/LoginScreen";
 import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
 import POSScreen from "./src/screens/POSScreen";
@@ -62,11 +62,12 @@ function OwnerEmployeeStack() {
 }
 
 function SuperAdminStack() {
+  const { accent } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerRight: () => <LogoutButton />,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: accent.value,
         tabBarIcon: (props) => tabIcon({ route, ...props }),
       })}
     >
@@ -110,11 +111,13 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <NavigationContainer>
-        <StatusBar style="auto" />
-        <RootNavigator />
-      </NavigationContainer>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <NavigationContainer>
+          <StatusBar style="auto" />
+          <RootNavigator />
+        </NavigationContainer>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
