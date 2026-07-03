@@ -60,9 +60,10 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["role", "shop", "shop_type"]
 
     def get_shop_type(self, user):
-        if user.shop:
-            return user.shop.shop_type
-        return None
+        try:
+            return user.shop.shop_type if user.shop_id else None
+        except Exception:
+            return None
 
 
 class EmployeeCreateSerializer(serializers.ModelSerializer):
