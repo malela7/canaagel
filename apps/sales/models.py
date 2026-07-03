@@ -20,6 +20,7 @@ class Customer(models.Model):
     name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=20, blank=True)
     address = models.CharField(max_length=255, blank=True)
+    house_number = models.CharField(max_length=50, blank=True)
 
     is_walk_in = models.BooleanField(default=False)
     bottle_tracking = models.BooleanField(

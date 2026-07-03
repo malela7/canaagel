@@ -17,6 +17,8 @@ import InventoryScreen from "./src/screens/InventoryScreen";
 import ProductsScreen from "./src/screens/ProductsScreen";
 import EmployeesScreen from "./src/screens/EmployeesScreen";
 import SubscriptionScreen from "./src/screens/SubscriptionScreen";
+import ExpensesScreen from "./src/screens/ExpensesScreen";
+import StockOrdersScreen from "./src/screens/StockOrdersScreen";
 import SuperAdminHomeScreen from "./src/screens/SuperAdminHomeScreen";
 import ShopsScreen from "./src/screens/ShopsScreen";
 import SuperAdminReportsScreen from "./src/screens/SuperAdminReportsScreen";
@@ -46,7 +48,9 @@ const OWNER_ICONS = {
   Customers: "people-outline",
   Delivery: "bicycle-outline",
   Inventory: "layers-outline",
-  Products: "package-outline",
+  Products: "cube-outline",
+  Expenses: "receipt-outline",
+  StockOrders: "file-tray-full-outline",
   Employees: "person-add-outline",
   Subscription: "card-outline",
   Reports: "bar-chart-outline",
@@ -78,7 +82,13 @@ function OwnerEmployeeStack() {
       <Tab.Screen name="Delivery" component={DeliveryScreen} />
       {shopType === "MILK"
         ? <Tab.Screen name="Inventory" component={InventoryScreen} />
-        : <Tab.Screen name="Products" component={ProductsScreen} />
+        : (
+          <>
+            <Tab.Screen name="Products" component={ProductsScreen} />
+            <Tab.Screen name="Expenses" component={ExpensesScreen} />
+            <Tab.Screen name="StockOrders" component={StockOrdersScreen} options={{ title: "Stock Orders" }} />
+          </>
+        )
       }
       {isOwner && <Tab.Screen name="Employees" component={EmployeesScreen} />}
       {isOwner && <Tab.Screen name="Subscription" component={SubscriptionScreen} />}

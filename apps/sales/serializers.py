@@ -8,7 +8,7 @@ class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
         fields = [
-            "id", "name", "phone_number", "address", "is_walk_in",
+            "id", "name", "phone_number", "address", "house_number", "is_walk_in",
             "bottle_tracking", "bottles_out", "payment_schedule", "debt_balance",
             "delivery_frequency", "delivery_days", "is_active", "created_at",
         ]

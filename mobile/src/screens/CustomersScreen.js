@@ -16,7 +16,7 @@ export default function CustomersScreen() {
   const [customers, setCustomers] = useState([]);
   const [tab, setTab] = useState("all");
   const [form, setForm] = useState({
-    name: "", phone_number: "", address: "",
+    name: "", phone_number: "", address: "", house_number: "",
     payment_schedule: "CASH", delivery_frequency: "NONE",
   });
   const [nameError, setNameError] = useState(null);
@@ -39,7 +39,7 @@ export default function CustomersScreen() {
     }
     setNameError(null);
     await api.post("/sales/customers/", form);
-    setForm({ name: "", phone_number: "", address: "", payment_schedule: "CASH", delivery_frequency: "NONE" });
+    setForm({ name: "", phone_number: "", address: "", house_number: "", payment_schedule: "CASH", delivery_frequency: "NONE" });
     load();
   };
 
@@ -69,6 +69,9 @@ export default function CustomersScreen() {
 
           <Text style={styles.label}>Address</Text>
           <TextInput style={styles.input} placeholder="e.g. Kahawa West" value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} />
+
+          <Text style={styles.label}>House Number</Text>
+          <TextInput style={styles.input} placeholder="e.g. A12" value={form.house_number} onChangeText={(v) => setForm({ ...form, house_number: v })} />
 
           <Text style={styles.label}>Payment schedule</Text>
           <View style={styles.pickerWrap}>
