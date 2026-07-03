@@ -11,6 +11,7 @@ export default function ShopsPage() {
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState([]);
   const [paymentAmounts, setPaymentAmounts] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
 
   const load = () => api.get("/shops/").then((r) => setShops(r.data.results || r.data));
 
@@ -120,9 +121,15 @@ export default function ShopsPage() {
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Password *</label>
-              <input className="border rounded px-3 py-2 w-full" type="password" placeholder="Set a password for the owner" required
-                autoComplete="new-password" name="owner_password_field"
-                value={form.owner_password} onChange={(e) => setForm({ ...form, owner_password: e.target.value })} />
+              <div className="relative">
+                <input className="border rounded px-3 py-2 w-full pr-9" type={showPassword ? "text" : "password"} placeholder="Set a password for the owner" required
+                  autoComplete="new-password" name="owner_password_field"
+                  value={form.owner_password} onChange={(e) => setForm({ ...form, owner_password: e.target.value })} />
+                <button type="button" onClick={() => setShowPassword((p) => !p)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm">
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

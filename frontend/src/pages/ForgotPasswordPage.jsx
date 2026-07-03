@@ -11,6 +11,7 @@ export default function ForgotPasswordPage() {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const requestCode = async (e) => {
     e.preventDefault();
@@ -74,13 +75,19 @@ export default function ForgotPasswordPage() {
               required
             />
             <label className="block text-sm font-medium mb-1">New password</label>
-            <input
-              type="password"
-              className="w-full border rounded px-3 py-2 mb-6"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-            />
+            <div className="relative mb-6">
+              <input
+                type={showPassword ? "text" : "password"}
+                className="w-full border rounded px-3 py-2 pr-10"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+              />
+              <button type="button" onClick={() => setShowPassword((p) => !p)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
             <button type="submit" disabled={loading}
               className="w-full bg-green-600 text-white rounded py-2 font-semibold disabled:opacity-50">
               {loading ? "Resetting..." : "Reset password"}

@@ -21,6 +21,7 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const load = () => api.get("/auth/employees/").then((r) => setEmployees(r.data.results || r.data));
 
@@ -58,8 +59,14 @@ export default function EmployeesPage() {
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">Password</label>
-          <input type="password" className="border rounded px-3 py-2 w-full" placeholder="Set a password" required
-            value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          <div className="relative">
+            <input type={showPassword ? "text" : "password"} className="border rounded px-3 py-2 w-full pr-9" placeholder="Set a password" required
+              value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <button type="button" onClick={() => setShowPassword((p) => !p)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm">
+              {showPassword ? "🙈" : "👁️"}
+            </button>
+          </div>
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">First name</label>
