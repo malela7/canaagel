@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "../context/ThemeContext";
-import api from "../services/api";
+import api from "../api/client";
 
 const emptyForm = { supplier_name: "", notes: "" };
 const emptyItem = { product_id: "", quantity: "", unit_cost: "" };

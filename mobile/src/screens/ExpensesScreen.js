@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "../context/ThemeContext";
-import api from "../services/api";
+import api from "../api/client";
 
 const CATEGORIES = [
   { value: "RENT", label: "Rent" },
