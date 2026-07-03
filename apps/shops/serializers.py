@@ -25,6 +25,7 @@ class ShopSerializer(serializers.ModelSerializer):
             "status",
             "plan",
             "monthly_fee",
+            "shop_type",
             "trial_ends_at",
             "current_period_end",
             "suspended_at",
@@ -79,6 +80,7 @@ class ShopRegisterSerializer(serializers.Serializer):
     shop_address = serializers.CharField(max_length=255, required=False, allow_blank=True)
     plan = serializers.ChoiceField(choices=Shop.Plan.choices, default=Shop.Plan.TRIAL)
     monthly_fee = serializers.DecimalField(max_digits=10, decimal_places=2, default=0)
+    shop_type = serializers.ChoiceField(choices=Shop.ShopType.choices, default=Shop.ShopType.MILK)
 
     owner_username = serializers.CharField(max_length=150)
     owner_first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
@@ -100,6 +102,7 @@ class ShopRegisterSerializer(serializers.Serializer):
             address=validated_data.get("shop_address", ""),
             plan=validated_data.get("plan", Shop.Plan.TRIAL),
             monthly_fee=validated_data.get("monthly_fee", 0),
+            shop_type=validated_data.get("shop_type", Shop.ShopType.MILK),
         )
         owner = User(
             username=validated_data["owner_username"],
@@ -113,6 +116,14 @@ class ShopRegisterSerializer(serializers.Serializer):
         owner.set_password(validated_data["owner_password"])
         owner.save()
         return shop
+
+
+class ShopUpdateSerializer(serializers.ModelSerializer):
+    """Admin edits an existing shop's basic details."""
+
+    class Meta:
+        model = Shop
+        fields = ["name", "phone_number", "address", "plan", "monthly_fee", "shop_type"]
 
 
 class SubscriptionPaymentSerializer(serializers.ModelSerializer):

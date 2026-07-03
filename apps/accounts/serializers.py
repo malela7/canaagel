@@ -41,6 +41,7 @@ class EmployeePermissionsSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     permissions = EmployeePermissionsSerializer(read_only=True)
+    shop_type = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -53,9 +54,15 @@ class UserSerializer(serializers.ModelSerializer):
             "phone_number",
             "role",
             "shop",
+            "shop_type",
             "permissions",
         ]
-        read_only_fields = ["role", "shop"]
+        read_only_fields = ["role", "shop", "shop_type"]
+
+    def get_shop_type(self, user):
+        if user.shop:
+            return user.shop.shop_type
+        return None
 
 
 class EmployeeCreateSerializer(serializers.ModelSerializer):

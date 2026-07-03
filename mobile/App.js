@@ -13,6 +13,10 @@ import POSScreen from "./src/screens/POSScreen";
 import CustomersScreen from "./src/screens/CustomersScreen";
 import DeliveryScreen from "./src/screens/DeliveryScreen";
 import ReportsScreen from "./src/screens/ReportsScreen";
+import InventoryScreen from "./src/screens/InventoryScreen";
+import ProductsScreen from "./src/screens/ProductsScreen";
+import EmployeesScreen from "./src/screens/EmployeesScreen";
+import SubscriptionScreen from "./src/screens/SubscriptionScreen";
 import SuperAdminHomeScreen from "./src/screens/SuperAdminHomeScreen";
 import ShopsScreen from "./src/screens/ShopsScreen";
 import SuperAdminReportsScreen from "./src/screens/SuperAdminReportsScreen";
@@ -30,32 +34,54 @@ function LogoutButton() {
   );
 }
 
-const TAB_ICONS = {
-  POS: "cart-outline",
-  Customers: "people-outline",
-  Delivery: "bicycle-outline",
-  Reports: "bar-chart-outline",
+const SUPER_ADMIN_ICONS = {
   Home: "home-outline",
   Shops: "storefront-outline",
+  Reports: "bar-chart-outline",
   Settings: "settings-outline",
 };
 
-function tabIcon({ route, color, size }) {
-  return <Ionicons name={TAB_ICONS[route.name] || "ellipse-outline"} size={size} color={color} />;
+const OWNER_ICONS = {
+  POS: "cart-outline",
+  Customers: "people-outline",
+  Delivery: "bicycle-outline",
+  Inventory: "layers-outline",
+  Products: "package-outline",
+  Employees: "person-add-outline",
+  Subscription: "card-outline",
+  Reports: "bar-chart-outline",
+};
+
+function superAdminTabIcon({ route, color, size }) {
+  return <Ionicons name={SUPER_ADMIN_ICONS[route.name] || "ellipse-outline"} size={size} color={color} />;
+}
+
+function ownerTabIcon({ route, color, size }) {
+  return <Ionicons name={OWNER_ICONS[route.name] || "ellipse-outline"} size={size} color={color} />;
 }
 
 function OwnerEmployeeStack() {
+  const { user } = useAuth();
+  const isOwner = user?.role === "OWNER";
+  const shopType = user?.shop_type || "MILK";
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerRight: () => <LogoutButton />,
         tabBarActiveTintColor: "#16a34a",
-        tabBarIcon: (props) => tabIcon({ route, ...props }),
+        tabBarIcon: (props) => ownerTabIcon({ route, ...props }),
       })}
     >
       <Tab.Screen name="POS" component={POSScreen} options={{ title: "Point of Sale" }} />
       <Tab.Screen name="Customers" component={CustomersScreen} />
       <Tab.Screen name="Delivery" component={DeliveryScreen} />
+      {shopType === "MILK"
+        ? <Tab.Screen name="Inventory" component={InventoryScreen} />
+        : <Tab.Screen name="Products" component={ProductsScreen} />
+      }
+      {isOwner && <Tab.Screen name="Employees" component={EmployeesScreen} />}
+      {isOwner && <Tab.Screen name="Subscription" component={SubscriptionScreen} />}
       <Tab.Screen name="Reports" component={ReportsScreen} />
     </Tab.Navigator>
   );
@@ -68,7 +94,7 @@ function SuperAdminStack() {
       screenOptions={({ route }) => ({
         headerRight: () => <LogoutButton />,
         tabBarActiveTintColor: accent.value,
-        tabBarIcon: (props) => tabIcon({ route, ...props }),
+        tabBarIcon: (props) => superAdminTabIcon({ route, ...props }),
       })}
     >
       <Tab.Screen name="Home" component={SuperAdminHomeScreen} />

@@ -41,6 +41,7 @@ const emptyForm = {
   owner_first_name: "", owner_last_name: "", owner_email: "", owner_phone_number: "",
   owner_username: "", owner_password: "",
   plan: "TRIAL", custom_price: false, monthly_fee: "",
+  shop_type: "MILK",
 };
 
 export default function ShopsScreen({ route }) {
@@ -50,8 +51,12 @@ export default function ShopsScreen({ route }) {
   const [statusTab, setStatusTab] = useState("ALL");
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(!!route?.params?.openForm);
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState([]);
   const [paymentAmounts, setPaymentAmounts] = useState({});
+  const [editShop, setEditShop] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [editErrors, setEditErrors] = useState([]);
 
   const load = () => api.get("/shops/").then((r) => setShops(r.data.results || r.data));
 
@@ -78,6 +83,7 @@ export default function ShopsScreen({ route }) {
       await api.post("/shops/", { ...form, monthly_fee });
       setForm(emptyForm);
       setShowForm(false);
+      setShowPassword(false);
       load();
     } catch (err) {
       const data = err.response?.data;
@@ -89,6 +95,39 @@ export default function ShopsScreen({ route }) {
         setErrors(messages.length ? messages : ["Could not register shop."]);
       } else {
         setErrors(["Could not register shop."]);
+      }
+    }
+  };
+
+  const openEdit = (shop) => {
+    setEditShop(shop);
+    setEditForm({
+      name: shop.name,
+      phone_number: shop.phone_number || "",
+      address: shop.address || "",
+      plan: shop.plan,
+      monthly_fee: String(shop.monthly_fee || ""),
+      shop_type: shop.shop_type || "MILK",
+    });
+    setEditErrors([]);
+  };
+
+  const handleEdit = async () => {
+    setEditErrors([]);
+    try {
+      await api.patch(`/shops/${editShop.id}/`, editForm);
+      setEditShop(null);
+      load();
+    } catch (err) {
+      const data = err.response?.data;
+      if (data && typeof data === "object") {
+        const messages = [];
+        Object.entries(data).forEach(([key, val]) => {
+          messages.push(`${key}: ${Array.isArray(val) ? val.join(" ") : val}`);
+        });
+        setEditErrors(messages.length ? messages : ["Could not save changes."]);
+      } else {
+        setEditErrors(["Could not save changes."]);
       }
     }
   };
@@ -158,8 +197,13 @@ export default function ShopsScreen({ route }) {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.shopName}>{s.name}</Text>
-                <View style={[styles.badge, { backgroundColor: planColors.bg }]}>
-                  <Text style={[styles.badgeText, { color: planColors.text }]}>{s.plan}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <View style={[styles.badge, { backgroundColor: planColors.bg }]}>
+                    <Text style={[styles.badgeText, { color: planColors.text }]}>{s.plan}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => openEdit(s)} style={styles.editBtn}>
+                    <Ionicons name="create-outline" size={16} color={colors.primary} />
+                  </TouchableOpacity>
                 </View>
               </View>
               {!!s.owner_name && <Text style={styles.ownerName}>{s.owner_name}</Text>}
@@ -213,38 +257,61 @@ export default function ShopsScreen({ route }) {
         }}
       />
 
+      {/* Register modal */}
       <Modal visible={showForm} animationType="slide" onRequestClose={() => setShowForm(false)}>
         <ScrollView style={styles.formContainer} contentContainerStyle={{ padding: 16 }}>
           <View style={styles.headerRow}>
             <Text style={styles.title}>Register Shop</Text>
-            <TouchableOpacity onPress={() => setShowForm(false)}>
+            <TouchableOpacity onPress={() => { setShowForm(false); setShowPassword(false); }}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
           {errors.map((e, i) => <Text key={i} style={styles.fieldError}>{e}</Text>)}
 
+          <Text style={styles.sectionLabel}>SHOP TYPE</Text>
+          <View style={styles.typeRow}>
+            {[{ key: "MILK", label: "Milk Shop", icon: "water-outline" }, { key: "GENERAL", label: "General Retail", icon: "storefront-outline" }].map((t) => (
+              <TouchableOpacity key={t.key} onPress={() => setForm({ ...form, shop_type: t.key })}
+                style={[styles.typeTile, form.shop_type === t.key && styles.typeTileActive]}>
+                <Ionicons name={t.icon} size={20} color={form.shop_type === t.key ? "#fff" : colors.textSecondary} />
+                <Text style={[styles.typeTileText, form.shop_type === t.key && { color: "#fff" }]}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <Text style={styles.sectionLabel}>SHOP DETAILS</Text>
           <Text style={styles.label}>Shop name</Text>
           <TextInput style={styles.input} placeholder="e.g. Jey Milk Shop" value={form.shop_name} onChangeText={(v) => setForm({ ...form, shop_name: v })} />
           <Text style={styles.label}>Phone number</Text>
-          <TextInput style={styles.input} placeholder="2547XXXXXXXX" value={form.shop_phone_number} onChangeText={(v) => setForm({ ...form, shop_phone_number: v })} />
+          <TextInput style={styles.input} placeholder="2547XXXXXXXX" keyboardType="phone-pad" value={form.shop_phone_number} onChangeText={(v) => setForm({ ...form, shop_phone_number: v })} />
           <Text style={styles.label}>Address</Text>
-          <TextInput style={styles.input} placeholder="e.g. 12 MG Road" value={form.shop_address} onChangeText={(v) => setForm({ ...form, shop_address: v })} />
+          <TextInput style={styles.input} placeholder="e.g. Kahawa West, Nairobi" value={form.shop_address} onChangeText={(v) => setForm({ ...form, shop_address: v })} />
 
           <Text style={styles.sectionLabel}>OWNER DETAILS</Text>
-          <Text style={styles.label}>Owner name</Text>
-          <TextInput style={styles.input} placeholder="Full name" value={form.owner_first_name} onChangeText={(v) => setForm({ ...form, owner_first_name: v })} />
+          <Text style={styles.label}>First name</Text>
+          <TextInput style={styles.input} placeholder="e.g. Jabir" value={form.owner_first_name} onChangeText={(v) => setForm({ ...form, owner_first_name: v })} />
           <Text style={styles.label}>Last name</Text>
-          <TextInput style={styles.input} placeholder="Last name" value={form.owner_last_name} onChangeText={(v) => setForm({ ...form, owner_last_name: v })} />
+          <TextInput style={styles.input} placeholder="e.g. Ali" value={form.owner_last_name} onChangeText={(v) => setForm({ ...form, owner_last_name: v })} />
           <Text style={styles.label}>Phone number</Text>
-          <TextInput style={styles.input} placeholder="+91 98765 43210" value={form.owner_phone_number} onChangeText={(v) => setForm({ ...form, owner_phone_number: v })} />
+          <TextInput style={styles.input} placeholder="2547XXXXXXXX" keyboardType="phone-pad" value={form.owner_phone_number} onChangeText={(v) => setForm({ ...form, owner_phone_number: v })} />
           <Text style={styles.label}>Email address</Text>
-          <TextInput style={styles.input} placeholder="owner@email.com" value={form.owner_email} onChangeText={(v) => setForm({ ...form, owner_email: v })} />
+          <TextInput style={styles.input} placeholder="owner@email.com" keyboardType="email-address" autoCapitalize="none" value={form.owner_email} onChangeText={(v) => setForm({ ...form, owner_email: v })} />
           <Text style={styles.label}>Username</Text>
           <TextInput style={styles.input} placeholder="e.g. jabir_owner" autoCapitalize="none" value={form.owner_username} onChangeText={(v) => setForm({ ...form, owner_username: v })} />
           <Text style={styles.label}>Password</Text>
-          <TextInput style={styles.input} placeholder="Set a password" secureTextEntry value={form.owner_password} onChangeText={(v) => setForm({ ...form, owner_password: v })} />
+          <View style={styles.passwordWrap}>
+            <TextInput
+              style={[styles.input, { flex: 1, borderWidth: 0, padding: 0 }]}
+              placeholder="Set a password"
+              secureTextEntry={!showPassword}
+              value={form.owner_password}
+              onChangeText={(v) => setForm({ ...form, owner_password: v })}
+            />
+            <TouchableOpacity onPress={() => setShowPassword((p) => !p)} style={styles.eyeBtn}>
+              <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.sectionLabel}>SUBSCRIPTION PLAN</Text>
           <View style={styles.planGrid}>
@@ -258,7 +325,7 @@ export default function ShopsScreen({ route }) {
                   {p === "TRIAL" ? "30 days\nTrial (Free)" : p}
                 </Text>
                 <Text style={[styles.planTilePrice, form.plan === p && styles.planTileLabelActive]}>
-                  {p === "TRIAL" ? "Free" : `₹${PLAN_PRICES[p]}/mo`}
+                  {p === "TRIAL" ? "Free" : `KES ${PLAN_PRICES[p]}/mo`}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -285,6 +352,58 @@ export default function ShopsScreen({ route }) {
           </TouchableOpacity>
         </ScrollView>
       </Modal>
+
+      {/* Edit modal */}
+      <Modal visible={!!editShop} animationType="slide" onRequestClose={() => setEditShop(null)}>
+        <ScrollView style={styles.formContainer} contentContainerStyle={{ padding: 16 }}>
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>Edit Shop</Text>
+            <TouchableOpacity onPress={() => setEditShop(null)}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          {editErrors.map((e, i) => <Text key={i} style={styles.fieldError}>{e}</Text>)}
+
+          <Text style={styles.sectionLabel}>SHOP TYPE</Text>
+          <View style={styles.typeRow}>
+            {[{ key: "MILK", label: "Milk Shop", icon: "water-outline" }, { key: "GENERAL", label: "General Retail", icon: "storefront-outline" }].map((t) => (
+              <TouchableOpacity key={t.key} onPress={() => setEditForm({ ...editForm, shop_type: t.key })}
+                style={[styles.typeTile, editForm.shop_type === t.key && styles.typeTileActive]}>
+                <Ionicons name={t.icon} size={20} color={editForm.shop_type === t.key ? "#fff" : colors.textSecondary} />
+                <Text style={[styles.typeTileText, editForm.shop_type === t.key && { color: "#fff" }]}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.sectionLabel}>SHOP DETAILS</Text>
+          <Text style={styles.label}>Shop name</Text>
+          <TextInput style={styles.input} value={editForm.name} onChangeText={(v) => setEditForm({ ...editForm, name: v })} />
+          <Text style={styles.label}>Phone number</Text>
+          <TextInput style={styles.input} keyboardType="phone-pad" value={editForm.phone_number} onChangeText={(v) => setEditForm({ ...editForm, phone_number: v })} />
+          <Text style={styles.label}>Address</Text>
+          <TextInput style={styles.input} value={editForm.address} onChangeText={(v) => setEditForm({ ...editForm, address: v })} />
+
+          <Text style={styles.sectionLabel}>SUBSCRIPTION PLAN</Text>
+          <View style={styles.planGrid}>
+            {["TRIAL", "BASIC", "STANDARD", "PREMIUM"].map((p) => (
+              <TouchableOpacity key={p} onPress={() => setEditForm({ ...editForm, plan: p })}
+                style={[styles.planTile, editForm.plan === p && styles.planTileActive]}>
+                <Text style={[styles.planTileLabel, editForm.plan === p && styles.planTileLabelActive]}>{p}</Text>
+                <Text style={[styles.planTilePrice, editForm.plan === p && styles.planTileLabelActive]}>
+                  {p === "TRIAL" ? "Free" : `KES ${PLAN_PRICES[p]}/mo`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.label}>Monthly fee (KES)</Text>
+          <TextInput style={styles.input} keyboardType="numeric" value={editForm.monthly_fee} onChangeText={(v) => setEditForm({ ...editForm, monthly_fee: v })} />
+
+          <TouchableOpacity style={styles.registerButton} onPress={handleEdit}>
+            <Text style={styles.registerButtonText}>Save Changes</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </Modal>
     </View>
   );
 }
@@ -298,7 +417,6 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, paddingVertical: 8, color: colors.text },
   chipRow: { paddingHorizontal: 16, marginBottom: 8, flexGrow: 0 },
   planChip: { paddingVertical: 4, paddingHorizontal: 10, marginRight: 6, borderRadius: 14 },
-  planChipActive: {},
   planChipText: { fontSize: 12, color: colors.textSecondary, fontWeight: "500" },
   planChipTextActive: { color: colors.primary, fontWeight: "700" },
   statusChip: { paddingVertical: 4, paddingHorizontal: 10, marginRight: 6, borderRadius: 14, borderWidth: 1, borderColor: colors.border },
@@ -308,11 +426,12 @@ const styles = StyleSheet.create({
   empty: { color: colors.textSecondary, fontSize: 13, textAlign: "center", marginTop: 24 },
   card: { backgroundColor: "#fff", borderRadius: 10, padding: 14, marginHorizontal: 16, marginBottom: 10 },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  shopName: { fontWeight: "700", fontSize: 15, color: colors.text },
+  shopName: { fontWeight: "700", fontSize: 15, color: colors.text, flex: 1 },
   ownerName: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   meta: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   badge: { borderRadius: 12, paddingVertical: 3, paddingHorizontal: 8 },
   badgeText: { fontSize: 11, fontWeight: "600" },
+  editBtn: { padding: 4 },
   statsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 },
   statLabel: { fontSize: 11, color: colors.textSecondary },
   statValue: { fontSize: 14, fontWeight: "700", color: colors.primaryDark },
@@ -325,10 +444,16 @@ const styles = StyleSheet.create({
   actionRedText: { color: "#b91c1c", fontSize: 12, fontWeight: "600" },
   paymentRow: { flexDirection: "row", gap: 8, alignItems: "center", marginTop: 8 },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 6, padding: 8, backgroundColor: "#fff", color: colors.text },
+  passwordWrap: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingHorizontal: 8, backgroundColor: "#fff", marginBottom: 4 },
+  eyeBtn: { padding: 6 },
   fieldError: { color: colors.danger, fontSize: 12, marginBottom: 4 },
   formContainer: { flex: 1, backgroundColor: colors.background },
   sectionLabel: { fontSize: 11, fontWeight: "700", color: colors.textSecondary, marginTop: 16, marginBottom: 4, letterSpacing: 0.5 },
   label: { fontSize: 12, fontWeight: "500", color: "#374151", marginTop: 8, marginBottom: 4 },
+  typeRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  typeTile: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, backgroundColor: "#fff" },
+  typeTileActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  typeTileText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
   planGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   planTile: { width: "47%", borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, backgroundColor: "#fff" },
   planTileActive: { backgroundColor: colors.primary, borderColor: colors.primary },

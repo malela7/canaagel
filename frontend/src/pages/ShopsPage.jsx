@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "../api/client";
 
 const emptyForm = {
-  shop_name: "", shop_phone_number: "", monthly_fee: "", plan: "TRIAL",
+  shop_name: "", shop_phone_number: "", monthly_fee: "", plan: "TRIAL", shop_type: "MILK",
   owner_username: "", owner_password: "", owner_first_name: "", owner_last_name: "",
 };
 
@@ -74,6 +74,18 @@ export default function ShopsPage() {
 
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b pb-1">Shop details</h3>
+          <div className="mb-3">
+            <label className="block text-xs text-gray-500 mb-1">Shop type *</label>
+            <div className="flex gap-3">
+              {[{ key: "MILK", label: "Milk Shop" }, { key: "GENERAL", label: "General Retail" }].map((t) => (
+                <label key={t.key} className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="shop_type" value={t.key} checked={form.shop_type === t.key}
+                    onChange={() => setForm({ ...form, shop_type: t.key })} />
+                  <span className="text-sm">{t.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Shop name *</label>
