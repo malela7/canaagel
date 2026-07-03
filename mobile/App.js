@@ -72,13 +72,10 @@ function ownerTabIcon({ route, color, size }) {
   return <Ionicons name={OWNER_ICONS[route.name] || "ellipse-outline"} size={size} color={color} />;
 }
 
-const Stack2 = createNativeStackNavigator();
+const RetailInnerStack = createNativeStackNavigator();
 
-function RetailStack() {
-  const { user } = useAuth();
+function RetailTabs() {
   const { accent } = useTheme();
-  const isOwner = user?.role === "OWNER";
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -95,30 +92,24 @@ function RetailStack() {
       <Tab.Screen name="PlaceOrder" component={RetailPOSScreen} options={{ title: "Place Order" }} />
       <Tab.Screen name="Home" component={RetailHomeScreen} />
       <Tab.Screen name="Dashboard" component={ReportsScreen} />
-      <Tab.Screen name="Profile">
-        {(props) => (
-          <Stack2.Navigator>
-            <Stack2.Screen
-              name="ProfileMain"
-              options={{ title: "Profile", headerRight: () => <LogoutButton /> }}
-            >
-              {(innerProps) => (
-                <RetailProfileScreen
-                  {...innerProps}
-                  navigation={{ ...innerProps.navigation, navigate: (name) => props.navigation.getParent()?.navigate(name) ?? innerProps.navigation.navigate(name) }}
-                />
-              )}
-            </Stack2.Screen>
-            <Stack2.Screen name="Customers" component={CustomersScreen} />
-            <Stack2.Screen name="Products" component={ProductsScreen} />
-            <Stack2.Screen name="Expenses" component={ExpensesScreen} />
-            <Stack2.Screen name="StockOrders" component={StockOrdersScreen} options={{ title: "Stock Orders" }} />
-            {isOwner && <Stack2.Screen name="Employees" component={EmployeesScreen} />}
-            {isOwner && <Stack2.Screen name="Subscription" component={SubscriptionScreen} />}
-          </Stack2.Navigator>
-        )}
-      </Tab.Screen>
+      <Tab.Screen name="Profile" component={RetailProfileScreen} />
     </Tab.Navigator>
+  );
+}
+
+function RetailStack() {
+  const { user } = useAuth();
+  const isOwner = user?.role === "OWNER";
+  return (
+    <RetailInnerStack.Navigator>
+      <RetailInnerStack.Screen name="RetailTabs" component={RetailTabs} options={{ headerShown: false }} />
+      <RetailInnerStack.Screen name="Customers" component={CustomersScreen} options={{ headerRight: () => <LogoutButton /> }} />
+      <RetailInnerStack.Screen name="Products" component={ProductsScreen} options={{ headerRight: () => <LogoutButton /> }} />
+      <RetailInnerStack.Screen name="Expenses" component={ExpensesScreen} options={{ headerRight: () => <LogoutButton /> }} />
+      <RetailInnerStack.Screen name="StockOrders" component={StockOrdersScreen} options={{ title: "Stock Orders", headerRight: () => <LogoutButton /> }} />
+      {isOwner && <RetailInnerStack.Screen name="Employees" component={EmployeesScreen} options={{ headerRight: () => <LogoutButton /> }} />}
+      {isOwner && <RetailInnerStack.Screen name="Subscription" component={SubscriptionScreen} options={{ headerRight: () => <LogoutButton /> }} />}
+    </RetailInnerStack.Navigator>
   );
 }
 

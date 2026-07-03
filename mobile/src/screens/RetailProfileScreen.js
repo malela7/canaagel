@@ -15,6 +15,8 @@ export default function RetailProfileScreen({ navigation }) {
   const { accent } = useTheme();
   const { user, logout } = useAuth();
   const isOwner = user?.role === "OWNER";
+  // navigate() goes to the RetailInnerStack (parent of the tabs)
+  const go = (screen) => navigation.getParent()?.navigate(screen);
 
   const confirmLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -44,17 +46,17 @@ export default function RetailProfileScreen({ navigation }) {
       {/* Navigation sections */}
       <View style={s.section}>
         <Text style={s.sectionTitle}>Shop</Text>
-        <MenuItem icon="people-outline" label="Customers" onPress={() => navigation.navigate("Customers")} accent={accent} />
-        <MenuItem icon="cube-outline" label="Products" onPress={() => navigation.navigate("Products")} accent={accent} />
-        <MenuItem icon="receipt-outline" label="Expenses" onPress={() => navigation.navigate("Expenses")} accent={accent} />
-        <MenuItem icon="file-tray-full-outline" label="Stock Orders" onPress={() => navigation.navigate("StockOrders")} accent={accent} />
+        <MenuItem icon="people-outline" label="Customers" onPress={() => go("Customers")} accent={accent} />
+        <MenuItem icon="cube-outline" label="Products" onPress={() => go("Products")} accent={accent} />
+        <MenuItem icon="receipt-outline" label="Expenses" onPress={() => go("Expenses")} accent={accent} />
+        <MenuItem icon="file-tray-full-outline" label="Stock Orders" onPress={() => go("StockOrders")} accent={accent} />
       </View>
 
       {isOwner && (
         <View style={s.section}>
           <Text style={s.sectionTitle}>Management</Text>
-          <MenuItem icon="person-add-outline" label="Employees" onPress={() => navigation.navigate("Employees")} accent={accent} />
-          <MenuItem icon="card-outline" label="Subscription & Billing" onPress={() => navigation.navigate("Subscription")} accent={accent} />
+          <MenuItem icon="person-add-outline" label="Employees" onPress={() => go("Employees")} accent={accent} />
+          <MenuItem icon="card-outline" label="Subscription & Billing" onPress={() => go("Subscription")} accent={accent} />
         </View>
       )}
 

@@ -2,8 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,7 +16,8 @@ import api from "../api/client";
 export default function RetailHomeScreen({ navigation }) {
   const { accent } = useTheme();
   const { user } = useAuth();
-  const [orders, setOrders] = useState([]);
+  const isOwner = user?.role === "OWNER";
+
   const [stats, setStats] = useState({ today_orders: 0, today_revenue: 0, total_products: 0, low_stock: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -24,140 +25,125 @@ export default function RetailHomeScreen({ navigation }) {
   const load = async () => {
     try {
       const [ordersRes, productsRes] = await Promise.all([
-        api.get("/retail/orders/?page_size=10"),
+        api.get("/retail/orders/?page_size=50"),
         api.get("/retail/products/?active=1"),
       ]);
       const allOrders = ordersRes.data.results ?? ordersRes.data;
       const allProducts = productsRes.data.results ?? productsRes.data;
-      setOrders(allOrders);
-
       const today = new Date().toISOString().split("T")[0];
       const todayOrders = allOrders.filter((o) => o.ordered_at?.startsWith(today));
       const todayRevenue = todayOrders.reduce((s, o) => s + parseFloat(o.total_cost || 0), 0);
-      const lowStock = allProducts.filter((p) => p.is_low).length;
-
       setStats({
         today_orders: todayOrders.length,
         today_revenue: todayRevenue,
         total_products: allProducts.length,
-        low_stock: lowStock,
+        low_stock: allProducts.filter((p) => p.is_low).length,
       });
-    } catch {
-      /* silently fail */
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    } catch { /* silent */ }
+    finally { setLoading(false); setRefreshing(false); }
   };
 
   useEffect(() => { load(); }, []);
   const onRefresh = useCallback(() => { setRefreshing(true); load(); }, []);
 
-  const statusColor = (s) => ({ PENDING: "#f59e0b", RECEIVED: "#22c55e", CANCELLED: "#ef4444" }[s] || "#6b7280");
+  // All feature tiles. navigate() goes to RetailInnerStack screens.
+  const go = (screen) => navigation.navigate(screen);
+  const switchTab = (tab) => navigation.getParent()?.navigate(tab);
+
+  const tiles = [
+    { label: "Place Order", icon: "cart-outline", color: "#3b82f6", bg: "#eff6ff", onPress: () => switchTab("PlaceOrder") },
+    { label: "Customers", icon: "people-outline", color: "#8b5cf6", bg: "#f5f3ff", onPress: () => go("Customers") },
+    { label: "Products", icon: "cube-outline", color: "#10b981", bg: "#ecfdf5", onPress: () => go("Products") },
+    { label: "Expenses", icon: "receipt-outline", color: "#f59e0b", bg: "#fffbeb", onPress: () => go("Expenses") },
+    { label: "Stock Orders", icon: "file-tray-full-outline", color: "#ef4444", bg: "#fef2f2", onPress: () => go("StockOrders") },
+    { label: "Dashboard", icon: "bar-chart-outline", color: "#06b6d4", bg: "#ecfeff", onPress: () => switchTab("Dashboard") },
+    ...(isOwner ? [
+      { label: "Employees", icon: "person-add-outline", color: "#ec4899", bg: "#fdf2f8", onPress: () => go("Employees") },
+      { label: "Subscription", icon: "card-outline", color: "#6366f1", bg: "#eef2ff", onPress: () => go("Subscription") },
+    ] : []),
+  ];
 
   const s = styles(accent);
 
   return (
-    <FlatList
-      data={orders}
-      keyExtractor={(i) => String(i.id)}
+    <ScrollView
+      style={s.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent} />}
-      contentContainerStyle={{ paddingBottom: 30 }}
-      ListHeaderComponent={
-        <>
-          {/* Greeting */}
-          <View style={s.greeting}>
-            <View>
-              <Text style={s.greetingHello}>Hello, {user?.first_name || user?.username} 👋</Text>
-              <Text style={s.greetingDate}>{new Date().toDateString()}</Text>
-            </View>
-            <View style={[s.avatarCircle, { backgroundColor: accent }]}>
-              <Text style={s.avatarText}>{(user?.first_name?.[0] || user?.username?.[0] || "U").toUpperCase()}</Text>
-            </View>
-          </View>
+    >
+      {/* Greeting banner */}
+      <View style={[s.banner, { backgroundColor: accent }]}>
+        <View>
+          <Text style={s.bannerHello}>Hello, {user?.first_name || user?.username} 👋</Text>
+          <Text style={s.bannerDate}>{new Date().toDateString()}</Text>
+        </View>
+        <View style={s.avatarCircle}>
+          <Text style={s.avatarText}>
+            {(user?.first_name?.[0] || user?.username?.[0] || "U").toUpperCase()}
+          </Text>
+        </View>
+      </View>
 
-          {/* Stats cards */}
-          {loading ? (
-            <ActivityIndicator style={{ margin: 20 }} color={accent} />
-          ) : (
-            <View style={s.statsGrid}>
-              <View style={[s.statCard, { backgroundColor: accent }]}>
-                <Ionicons name="receipt-outline" size={22} color="rgba(255,255,255,0.8)" />
-                <Text style={s.statValue}>{stats.today_orders}</Text>
-                <Text style={s.statLabel}>Today's Orders</Text>
-              </View>
-              <View style={[s.statCard, { backgroundColor: "#fff" }]}>
-                <Ionicons name="cash-outline" size={22} color={accent} />
-                <Text style={[s.statValue, { color: "#111827" }]}>KES {stats.today_revenue.toFixed(0)}</Text>
-                <Text style={[s.statLabel, { color: "#6b7280" }]}>Today's Revenue</Text>
-              </View>
-              <View style={[s.statCard, { backgroundColor: "#fff" }]}>
-                <Ionicons name="cube-outline" size={22} color={accent} />
-                <Text style={[s.statValue, { color: "#111827" }]}>{stats.total_products}</Text>
-                <Text style={[s.statLabel, { color: "#6b7280" }]}>Products</Text>
-              </View>
-              <View style={[s.statCard, { backgroundColor: stats.low_stock > 0 ? "#fef3c7" : "#fff" }]}>
-                <Ionicons name="warning-outline" size={22} color={stats.low_stock > 0 ? "#d97706" : "#9ca3af"} />
-                <Text style={[s.statValue, { color: stats.low_stock > 0 ? "#d97706" : "#111827" }]}>{stats.low_stock}</Text>
-                <Text style={[s.statLabel, { color: stats.low_stock > 0 ? "#d97706" : "#6b7280" }]}>Low Stock</Text>
-              </View>
-            </View>
-          )}
-
-          <Text style={s.sectionTitle}>Recent Orders</Text>
-        </>
-      }
-      renderItem={({ item }) => (
-        <View style={s.orderCard}>
-          <View style={s.orderTop}>
-            <View>
-              <Text style={s.orderId}>Order #{item.id}</Text>
-              {item.supplier_name ? <Text style={s.orderSub}>{item.supplier_name}</Text> : null}
-              {item.notes ? <Text style={s.orderNote}>{item.notes}</Text> : null}
-            </View>
-            <View>
-              <View style={[s.badge, { backgroundColor: statusColor(item.status) + "20" }]}>
-                <Text style={[s.badgeText, { color: statusColor(item.status) }]}>{item.status}</Text>
-              </View>
-              <Text style={s.orderTotal}>KES {parseFloat(item.total_cost).toFixed(2)}</Text>
-            </View>
+      {/* Stat cards */}
+      {loading ? (
+        <ActivityIndicator style={{ margin: 20 }} color={accent} />
+      ) : (
+        <View style={s.statsRow}>
+          <View style={[s.statCard, { borderColor: accent + "33" }]}>
+            <Ionicons name="receipt-outline" size={18} color={accent} />
+            <Text style={[s.statNum, { color: accent }]}>{stats.today_orders}</Text>
+            <Text style={s.statLabel}>Today's Orders</Text>
           </View>
-          <Text style={s.orderDate}>{new Date(item.ordered_at).toLocaleString()}</Text>
+          <View style={[s.statCard, { borderColor: "#10b98133" }]}>
+            <Ionicons name="cash-outline" size={18} color="#10b981" />
+            <Text style={[s.statNum, { color: "#10b981" }]}>KES {stats.today_revenue.toFixed(0)}</Text>
+            <Text style={s.statLabel}>Revenue Today</Text>
+          </View>
+          <View style={[s.statCard, { borderColor: stats.low_stock > 0 ? "#f59e0b33" : "#e5e7eb" }]}>
+            <Ionicons name="warning-outline" size={18} color={stats.low_stock > 0 ? "#f59e0b" : "#9ca3af"} />
+            <Text style={[s.statNum, { color: stats.low_stock > 0 ? "#f59e0b" : "#111827" }]}>{stats.low_stock}</Text>
+            <Text style={s.statLabel}>Low Stock</Text>
+          </View>
         </View>
       )}
-      ListEmptyComponent={
-        !loading && (
-          <View style={s.empty}>
-            <Ionicons name="receipt-outline" size={48} color="#9ca3af" />
-            <Text style={s.emptyText}>No orders yet today</Text>
-          </View>
-        )
-      }
-    />
+
+      {/* Feature grid */}
+      <Text style={s.sectionTitle}>Features</Text>
+      <View style={s.grid}>
+        {tiles.map((tile) => (
+          <TouchableOpacity
+            key={tile.label}
+            style={[s.tile, { backgroundColor: tile.bg, borderColor: tile.color + "33" }]}
+            onPress={tile.onPress}
+            activeOpacity={0.75}
+          >
+            <View style={[s.tileIconWrap, { backgroundColor: tile.color + "20" }]}>
+              <Ionicons name={tile.icon} size={28} color={tile.color} />
+            </View>
+            <Text style={[s.tileLabel, { color: tile.color }]}>{tile.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={{ height: 30 }} />
+    </ScrollView>
   );
 }
 
 const styles = (accent) =>
   StyleSheet.create({
-    greeting: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, paddingBottom: 10 },
-    greetingHello: { fontSize: 20, fontWeight: "800", color: "#111827" },
-    greetingDate: { fontSize: 13, color: "#9ca3af", marginTop: 2 },
-    avatarCircle: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
-    avatarText: { color: "#fff", fontSize: 18, fontWeight: "800" },
-    statsGrid: { flexDirection: "row", flexWrap: "wrap", padding: 12, gap: 10 },
-    statCard: { flex: 1, minWidth: "44%", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "#f3f4f6" },
-    statValue: { fontSize: 22, fontWeight: "900", color: "#fff", marginTop: 6 },
-    statLabel: { fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 2 },
-    sectionTitle: { fontSize: 15, fontWeight: "700", color: "#111827", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
-    orderCard: { backgroundColor: "#fff", marginHorizontal: 16, marginBottom: 10, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#e5e7eb" },
-    orderTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-    orderId: { fontSize: 14, fontWeight: "700", color: "#111827" },
-    orderSub: { fontSize: 12, color: "#6b7280" },
-    orderNote: { fontSize: 12, color: "#6b7280", fontStyle: "italic" },
-    orderTotal: { fontSize: 14, fontWeight: "700", color: "#111827", textAlign: "right", marginTop: 4 },
-    badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: "flex-end" },
-    badgeText: { fontSize: 11, fontWeight: "600" },
-    orderDate: { fontSize: 11, color: "#9ca3af", marginTop: 8 },
-    empty: { alignItems: "center", paddingTop: 40 },
-    emptyText: { color: "#9ca3af", marginTop: 8, fontSize: 14 },
+    container: { flex: 1, backgroundColor: "#f9fafb" },
+    banner: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 },
+    bannerHello: { fontSize: 20, fontWeight: "800", color: "#fff" },
+    bannerDate: { fontSize: 13, color: "rgba(255,255,255,0.75)", marginTop: 3 },
+    avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.25)", alignItems: "center", justifyContent: "center" },
+    avatarText: { color: "#fff", fontSize: 20, fontWeight: "800" },
+    statsRow: { flexDirection: "row", paddingHorizontal: 16, paddingTop: 14, gap: 8 },
+    statCard: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 12, alignItems: "center", borderWidth: 1.5 },
+    statNum: { fontSize: 16, fontWeight: "900", marginTop: 4 },
+    statLabel: { fontSize: 10, color: "#6b7280", marginTop: 2, textAlign: "center" },
+    sectionTitle: { fontSize: 15, fontWeight: "700", color: "#111827", paddingHorizontal: 16, paddingTop: 18, paddingBottom: 10 },
+    grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, gap: 10 },
+    tile: { width: "47%", borderRadius: 14, padding: 16, borderWidth: 1.5, alignItems: "center", justifyContent: "center", minHeight: 110 },
+    tileIconWrap: { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center", marginBottom: 10 },
+    tileLabel: { fontSize: 14, fontWeight: "700", textAlign: "center" },
   });
