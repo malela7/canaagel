@@ -1,4 +1,3 @@
-from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from django.db.models import Sum
 from rest_framework import serializers
@@ -87,7 +86,7 @@ class ShopRegisterSerializer(serializers.Serializer):
     owner_last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     owner_email = serializers.EmailField(required=False, allow_blank=True)
     owner_phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    owner_password = serializers.CharField(write_only=True, validators=[validate_password])
+    owner_password = serializers.CharField(write_only=True, min_length=4)
 
     def validate_owner_username(self, value):
         if User.objects.filter(username=value).exists():

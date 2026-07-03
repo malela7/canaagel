@@ -67,7 +67,7 @@ export default function CustomersScreen() {
           <Text style={styles.label}>Phone</Text>
           <TextInput style={styles.input} placeholder="2547XXXXXXXX" value={form.phone_number} onChangeText={(v) => setForm({ ...form, phone_number: v })} />
 
-          <Text style={styles.label}>Address</Text>
+          <Text style={styles.label}>Address <Text style={{ color: "#9ca3af", fontWeight: "400" }}>(optional)</Text></Text>
           <TextInput style={styles.input} placeholder="e.g. Kahawa West" value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} />
 
           <Text style={styles.label}>House Number</Text>

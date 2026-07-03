@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
@@ -11,41 +11,50 @@ export default function LoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const passwordRef = useRef(null);
 
   const handleSubmit = async () => {
     setError("");
     setLoading(true);
     try {
-      await login(username, password);
+      await login(username.trim(), password);
     } catch {
-      setError("Invalid username or password.");
+      setError("Invalid username / email or password.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      importantForAutofill="yes"
+    >
       <View style={styles.iconWrap}>
         <Ionicons name="water" size={28} color="#fff" />
       </View>
       <Text style={styles.title}>Canolee</Text>
-      <Text style={styles.subtitle}>Milk Shop Management Platform</Text>
+      <Text style={styles.subtitle}>Shop Management Platform</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Text style={styles.label}>Username</Text>
+      <Text style={styles.label}>Username or Email</Text>
       <View style={styles.fieldWrap}>
-        <Ionicons name="mail-outline" size={18} color={colors.textSecondary} style={styles.fieldIcon} />
+        <Ionicons name="person-outline" size={18} color={colors.textSecondary} style={styles.fieldIcon} />
         <TextInput
           style={[styles.input, styles.fieldInput]}
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
+          autoCorrect={false}
           autoComplete="username"
           textContentType="username"
           importantForAutofill="yes"
-          placeholder="e.g. imran"
+          keyboardType="email-address"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          placeholder="username or email@example.com"
+          placeholderTextColor="#9ca3af"
         />
       </View>
 
@@ -53,6 +62,7 @@ export default function LoginScreen({ navigation }) {
       <View style={styles.fieldWrap}>
         <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} style={styles.fieldIcon} />
         <TextInput
+          ref={passwordRef}
           style={[styles.input, styles.fieldInput, styles.passwordInput]}
           value={password}
           onChangeText={setPassword}
@@ -60,7 +70,10 @@ export default function LoginScreen({ navigation }) {
           autoComplete="password"
           textContentType="password"
           importantForAutofill="yes"
+          returnKeyType="go"
+          onSubmitEditing={handleSubmit}
           placeholder="••••••••"
+          placeholderTextColor="#9ca3af"
         />
         <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={styles.eyeButton}>
           <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color={colors.textSecondary} />

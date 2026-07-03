@@ -1,8 +1,12 @@
-from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import EmployeePermissions, User
+
+
+def min4(value):
+    if len(value) < 4:
+        raise serializers.ValidationError("Password must be at least 4 characters.")
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
@@ -12,10 +16,20 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 class PasswordResetConfirmSerializer(serializers.Serializer):
     username = serializers.CharField()
     code = serializers.CharField(max_length=6)
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(write_only=True, validators=[min4])
 
 
 class MilkshopTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        username_or_email = attrs.get("username", "")
+        if "@" in username_or_email:
+            try:
+                user = User.objects.get(email__iexact=username_or_email)
+                attrs["username"] = user.username
+            except User.DoesNotExist:
+                pass
+        return super().validate(attrs)
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
@@ -67,7 +81,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class EmployeeCreateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, validators=[validate_password])
+    password = serializers.CharField(write_only=True, validators=[min4])
     permissions = EmployeePermissionsSerializer(required=False)
 
     class Meta:
