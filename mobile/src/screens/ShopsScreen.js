@@ -57,6 +57,7 @@ export default function ShopsScreen({ route }) {
   const [editShop, setEditShop] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [editErrors, setEditErrors] = useState([]);
+  const [detailShop, setDetailShop] = useState(null);
 
   const load = () => api.get("/shops/").then((r) => setShops(r.data.results || r.data));
 
@@ -194,68 +195,177 @@ export default function ShopsScreen({ route }) {
           const statusColors = STATUS_BADGE[s.status] || STATUS_BADGE.EXPIRED;
           const planColors = PLAN_BADGE[s.plan] || PLAN_BADGE.TRIAL;
           return (
-            <View style={styles.card}>
+            <TouchableOpacity style={styles.card} onPress={() => setDetailShop(s)} activeOpacity={0.85}>
               <View style={styles.cardHeader}>
-                <Text style={styles.shopName}>{s.name}</Text>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.shopName}>{s.name}</Text>
+                  {!!s.owner_name && <Text style={styles.ownerName}>{s.owner_name}</Text>}
+                </View>
+                <View style={{ alignItems: "flex-end", gap: 4 }}>
+                  <View style={[styles.badge, { backgroundColor: statusColors.bg }]}>
+                    <Text style={[styles.badgeText, { color: statusColors.text }]}>{s.status}</Text>
+                  </View>
                   <View style={[styles.badge, { backgroundColor: planColors.bg }]}>
                     <Text style={[styles.badgeText, { color: planColors.text }]}>{s.plan}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => openEdit(s)} style={styles.editBtn}>
-                    <Ionicons name="create-outline" size={16} color={colors.primary} />
-                  </TouchableOpacity>
                 </View>
               </View>
-              {!!s.owner_name && <Text style={styles.ownerName}>{s.owner_name}</Text>}
+
               {!!s.address && <Text style={styles.meta}><Ionicons name="location-outline" size={12} /> {s.address}</Text>}
               {!!s.owner_phone_number && <Text style={styles.meta}><Ionicons name="call-outline" size={12} /> {s.owner_phone_number}</Text>}
-              <Text style={styles.meta}>Trial ends: {s.trial_ends_at ? s.trial_ends_at.slice(0, 10) : "—"}</Text>
 
               <View style={styles.statsRow}>
                 <View>
-                  <Text style={styles.statLabel}>Sales</Text>
+                  <Text style={styles.statLabel}>Total Sales</Text>
                   <Text style={styles.statValue}>KES {s.total_sales}</Text>
                 </View>
                 <View>
                   <Text style={styles.statLabel}>Customers</Text>
                   <Text style={styles.statValue}>{s.customer_count}</Text>
                 </View>
-                <View style={[styles.badge, { backgroundColor: statusColors.bg }]}>
-                  <Text style={[styles.badgeText, { color: statusColors.text }]}>{s.status}</Text>
+                <View>
+                  <Text style={styles.statLabel}>Monthly Fee</Text>
+                  <Text style={styles.statValue}>KES {s.monthly_fee}</Text>
                 </View>
               </View>
 
-              <View style={styles.actionRow}>
-                <TouchableOpacity style={styles.actionGray} onPress={() => extendTrial(s.id)}>
-                  <Text style={styles.actionGrayText}>Extend</Text>
-                </TouchableOpacity>
-                {s.status === "SUSPENDED" || s.status === "EXPIRED" ? (
-                  <TouchableOpacity style={styles.actionGreen} onPress={() => activate(s.id)}>
-                    <Text style={styles.actionGreenText}>Activate</Text>
+              <View style={styles.cardFooter}>
+                <Text style={styles.tapHint}>Tap for full details</Text>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  <TouchableOpacity style={styles.iconBtn} onPress={(e) => { e.stopPropagation(); openEdit(s); }}>
+                    <Ionicons name="create-outline" size={16} color={colors.primary} />
                   </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={styles.actionRed} onPress={() => suspend(s.id, s.name)}>
-                    <Text style={styles.actionRedText}>Suspend</Text>
-                  </TouchableOpacity>
-                )}
+                  {s.status === "SUSPENDED" || s.status === "EXPIRED" ? (
+                    <TouchableOpacity style={styles.actionGreen} onPress={(e) => { e.stopPropagation(); activate(s.id); }}>
+                      <Text style={styles.actionGreenText}>Activate</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity style={styles.actionRed} onPress={(e) => { e.stopPropagation(); suspend(s.id, s.name); }}>
+                      <Text style={styles.actionRedText}>Suspend</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-
-              <View style={styles.paymentRow}>
-                <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  placeholder="Amount paid"
-                  keyboardType="numeric"
-                  value={paymentAmounts[s.id] || ""}
-                  onChangeText={(v) => setPaymentAmounts((prev) => ({ ...prev, [s.id]: v }))}
-                />
-                <TouchableOpacity style={styles.actionGray} onPress={() => recordPayment(s.id)}>
-                  <Text style={styles.actionGrayText}>Record</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            </TouchableOpacity>
           );
         }}
       />
+
+      {/* Detail modal */}
+      <Modal visible={!!detailShop} animationType="slide" transparent onRequestClose={() => setDetailShop(null)}>
+        <View style={styles.detailOverlay}>
+          <View style={styles.detailSheet}>
+            {detailShop && (() => {
+              const s = detailShop;
+              const sc = STATUS_BADGE[s.status] || STATUS_BADGE.EXPIRED;
+              const pc = PLAN_BADGE[s.plan] || PLAN_BADGE.TRIAL;
+              return (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {/* Header */}
+                  <View style={styles.detailHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.detailShopName}>{s.name}</Text>
+                      <Text style={styles.detailShopType}>{s.shop_type === "MILK" ? "🥛 Milk Shop" : "🛒 General Retail"}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setDetailShop(null)} style={styles.closeBtn}>
+                      <Ionicons name="close" size={22} color="#6b7280" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Status + Plan badges */}
+                  <View style={styles.detailBadges}>
+                    <View style={[styles.badge, { backgroundColor: sc.bg, paddingVertical: 6, paddingHorizontal: 14 }]}>
+                      <Text style={[styles.badgeText, { color: sc.text, fontSize: 13 }]}>{s.status}</Text>
+                    </View>
+                    <View style={[styles.badge, { backgroundColor: pc.bg, paddingVertical: 6, paddingHorizontal: 14 }]}>
+                      <Text style={[styles.badgeText, { color: pc.text, fontSize: 13 }]}>{s.plan} Plan</Text>
+                    </View>
+                  </View>
+
+                  {/* Shop details */}
+                  <Text style={styles.detailSection}>SHOP DETAILS</Text>
+                  <View style={styles.detailCard}>
+                    <DetailRow icon="storefront-outline" label="Shop Name" value={s.name} />
+                    <DetailRow icon="call-outline" label="Phone" value={s.phone_number || "—"} />
+                    <DetailRow icon="location-outline" label="Address" value={s.address || "—"} />
+                    <DetailRow icon="calendar-outline" label="Registered" value={s.created_at ? s.created_at.slice(0, 10) : "—"} />
+                  </View>
+
+                  {/* Owner details */}
+                  <Text style={styles.detailSection}>OWNER DETAILS</Text>
+                  <View style={styles.detailCard}>
+                    <DetailRow icon="person-outline" label="Full Name" value={s.owner_name || "—"} />
+                    <DetailRow icon="call-outline" label="Phone" value={s.owner_phone_number || "—"} />
+                    <DetailRow icon="mail-outline" label="Email" value={s.owner_email || "—"} />
+                  </View>
+
+                  {/* Subscription */}
+                  <Text style={styles.detailSection}>SUBSCRIPTION</Text>
+                  <View style={styles.detailCard}>
+                    <DetailRow icon="card-outline" label="Plan" value={s.plan} />
+                    <DetailRow icon="cash-outline" label="Monthly Fee" value={`KES ${s.monthly_fee}`} />
+                    <DetailRow icon="hourglass-outline" label="Trial Ends" value={s.trial_ends_at ? s.trial_ends_at.slice(0, 10) : "—"} />
+                    <DetailRow icon="checkmark-circle-outline" label="Subscription Ends" value={s.current_period_end ? s.current_period_end.slice(0, 10) : "—"} />
+                    {s.suspended_at && <DetailRow icon="ban-outline" label="Suspended At" value={s.suspended_at.slice(0, 10)} />}
+                  </View>
+
+                  {/* Activity */}
+                  <Text style={styles.detailSection}>ACTIVITY</Text>
+                  <View style={styles.detailStatsRow}>
+                    <View style={styles.detailStatCard}>
+                      <Ionicons name="cash-outline" size={20} color={colors.primary} />
+                      <Text style={styles.detailStatNum}>KES {Number(s.total_sales).toLocaleString()}</Text>
+                      <Text style={styles.detailStatLabel}>Total Sales</Text>
+                    </View>
+                    <View style={styles.detailStatCard}>
+                      <Ionicons name="people-outline" size={20} color="#8b5cf6" />
+                      <Text style={[styles.detailStatNum, { color: "#8b5cf6" }]}>{s.customer_count}</Text>
+                      <Text style={styles.detailStatLabel}>Customers</Text>
+                    </View>
+                  </View>
+
+                  {/* Actions */}
+                  <View style={styles.detailActions}>
+                    <TouchableOpacity style={styles.detailEditBtn} onPress={() => { setDetailShop(null); openEdit(s); }}>
+                      <Ionicons name="create-outline" size={16} color="#fff" />
+                      <Text style={styles.detailEditText}>Edit Shop</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionGray} onPress={() => { extendTrial(s.id); setDetailShop(null); }}>
+                      <Text style={styles.actionGrayText}>Extend Trial</Text>
+                    </TouchableOpacity>
+                    {s.status === "SUSPENDED" || s.status === "EXPIRED" ? (
+                      <TouchableOpacity style={styles.actionGreen} onPress={() => { activate(s.id); setDetailShop(null); }}>
+                        <Text style={styles.actionGreenText}>Activate</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity style={styles.actionRed} onPress={() => { suspend(s.id, s.name); setDetailShop(null); }}>
+                        <Text style={styles.actionRedText}>Suspend</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* Record payment */}
+                  <Text style={styles.detailSection}>RECORD PAYMENT</Text>
+                  <View style={styles.paymentRow}>
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      placeholder="Amount (KES)"
+                      keyboardType="numeric"
+                      value={paymentAmounts[s.id] || ""}
+                      onChangeText={(v) => setPaymentAmounts((prev) => ({ ...prev, [s.id]: v }))}
+                    />
+                    <TouchableOpacity style={styles.actionGray} onPress={() => { recordPayment(s.id); setDetailShop(null); }}>
+                      <Text style={styles.actionGrayText}>Record</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ height: 40 }} />
+                </ScrollView>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
 
       {/* Register modal */}
       <Modal visible={showForm} animationType="slide" onRequestClose={() => setShowForm(false)}>
@@ -408,6 +518,16 @@ export default function ShopsScreen({ route }) {
   );
 }
 
+function DetailRow({ icon, label, value }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" }}>
+      <Ionicons name={icon} size={15} color="#9ca3af" style={{ marginRight: 10, width: 18 }} />
+      <Text style={{ fontSize: 12, color: "#9ca3af", width: 110 }}>{label}</Text>
+      <Text style={{ fontSize: 14, color: "#111827", fontWeight: "500", flex: 1 }}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
@@ -463,4 +583,25 @@ const styles = StyleSheet.create({
   customPriceRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 },
   registerButton: { backgroundColor: colors.primary, borderRadius: 8, padding: 14, alignItems: "center", marginTop: 20, marginBottom: 40 },
   registerButtonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  // Card footer
+  cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#f3f4f6" },
+  tapHint: { fontSize: 11, color: "#9ca3af" },
+  iconBtn: { padding: 6, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 6 },
+  // Detail sheet
+  detailOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
+  detailSheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: "92%" },
+  detailHeader: { flexDirection: "row", alignItems: "flex-start", marginBottom: 12 },
+  detailShopName: { fontSize: 20, fontWeight: "800", color: "#111827" },
+  detailShopType: { fontSize: 13, color: "#6b7280", marginTop: 3 },
+  closeBtn: { padding: 4 },
+  detailBadges: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  detailSection: { fontSize: 11, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginTop: 16, marginBottom: 6 },
+  detailCard: { backgroundColor: "#f9fafb", borderRadius: 12, paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4, borderWidth: 1, borderColor: "#e5e7eb" },
+  detailStatsRow: { flexDirection: "row", gap: 10 },
+  detailStatCard: { flex: 1, backgroundColor: "#f9fafb", borderRadius: 12, padding: 14, alignItems: "center", borderWidth: 1, borderColor: "#e5e7eb" },
+  detailStatNum: { fontSize: 18, fontWeight: "900", color: colors.primaryDark, marginTop: 6 },
+  detailStatLabel: { fontSize: 11, color: "#6b7280", marginTop: 3 },
+  detailActions: { flexDirection: "row", gap: 8, marginTop: 16 },
+  detailEditBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10 },
+  detailEditText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 });
