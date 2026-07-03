@@ -42,6 +42,9 @@ export default function LoginScreen({ navigation }) {
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
+          autoComplete="username"
+          textContentType="username"
+          importantForAutofill="yes"
           placeholder="e.g. imran"
         />
       </View>
@@ -54,6 +57,9 @@ export default function LoginScreen({ navigation }) {
           value={password}
           onChangeText={setPassword}
           secureTextEntry={!showPassword}
+          autoComplete="password"
+          textContentType="password"
+          importantForAutofill="yes"
           placeholder="••••••••"
         />
         <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={styles.eyeButton}>

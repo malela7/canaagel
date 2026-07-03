@@ -23,6 +23,9 @@ import SuperAdminHomeScreen from "./src/screens/SuperAdminHomeScreen";
 import ShopsScreen from "./src/screens/ShopsScreen";
 import SuperAdminReportsScreen from "./src/screens/SuperAdminReportsScreen";
 import SuperAdminSettingsScreen from "./src/screens/SuperAdminSettingsScreen";
+import RetailPOSScreen from "./src/screens/RetailPOSScreen";
+import RetailHomeScreen from "./src/screens/RetailHomeScreen";
+import RetailProfileScreen from "./src/screens/RetailProfileScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -54,6 +57,11 @@ const OWNER_ICONS = {
   Employees: "person-add-outline",
   Subscription: "card-outline",
   Reports: "bar-chart-outline",
+  // Retail 4-tab layout
+  PlaceOrder: "cart-outline",
+  Home: "home-outline",
+  Dashboard: "bar-chart-outline",
+  Profile: "person-circle-outline",
 };
 
 function superAdminTabIcon({ route, color, size }) {
@@ -64,37 +72,83 @@ function ownerTabIcon({ route, color, size }) {
   return <Ionicons name={OWNER_ICONS[route.name] || "ellipse-outline"} size={size} color={color} />;
 }
 
-function OwnerEmployeeStack() {
+const Stack2 = createNativeStackNavigator();
+
+function RetailStack() {
+  const { user } = useAuth();
+  const { accent } = useTheme();
+  const isOwner = user?.role === "OWNER";
+
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: accent,
+        tabBarInactiveTintColor: "#9ca3af",
+        tabBarStyle: { borderTopWidth: 1, borderTopColor: "#f3f4f6", height: 60, paddingBottom: 8 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarIcon: ({ color, size }) => (
+          <Ionicons name={OWNER_ICONS[route.name] || "ellipse-outline"} size={size} color={color} />
+        ),
+      })}
+    >
+      <Tab.Screen name="PlaceOrder" component={RetailPOSScreen} options={{ title: "Place Order" }} />
+      <Tab.Screen name="Home" component={RetailHomeScreen} />
+      <Tab.Screen name="Dashboard" component={ReportsScreen} />
+      <Tab.Screen name="Profile">
+        {(props) => (
+          <Stack2.Navigator>
+            <Stack2.Screen
+              name="ProfileMain"
+              options={{ title: "Profile", headerRight: () => <LogoutButton /> }}
+            >
+              {(innerProps) => (
+                <RetailProfileScreen
+                  {...innerProps}
+                  navigation={{ ...innerProps.navigation, navigate: (name) => props.navigation.getParent()?.navigate(name) ?? innerProps.navigation.navigate(name) }}
+                />
+              )}
+            </Stack2.Screen>
+            <Stack2.Screen name="Customers" component={CustomersScreen} />
+            <Stack2.Screen name="Products" component={ProductsScreen} />
+            <Stack2.Screen name="Expenses" component={ExpensesScreen} />
+            <Stack2.Screen name="StockOrders" component={StockOrdersScreen} options={{ title: "Stock Orders" }} />
+            {isOwner && <Stack2.Screen name="Employees" component={EmployeesScreen} />}
+            {isOwner && <Stack2.Screen name="Subscription" component={SubscriptionScreen} />}
+          </Stack2.Navigator>
+        )}
+      </Tab.Screen>
+    </Tab.Navigator>
+  );
+}
+
+function MilkStack() {
+  const { accent } = useTheme();
   const { user } = useAuth();
   const isOwner = user?.role === "OWNER";
-  const shopType = user?.shop_type || "MILK";
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerRight: () => <LogoutButton />,
-        tabBarActiveTintColor: "#16a34a",
+        tabBarActiveTintColor: accent,
         tabBarIcon: (props) => ownerTabIcon({ route, ...props }),
       })}
     >
       <Tab.Screen name="POS" component={POSScreen} options={{ title: "Point of Sale" }} />
       <Tab.Screen name="Customers" component={CustomersScreen} />
-      <Tab.Screen name="Delivery" component={DeliveryScreen} />
-      {shopType === "MILK"
-        ? <Tab.Screen name="Inventory" component={InventoryScreen} />
-        : (
-          <>
-            <Tab.Screen name="Products" component={ProductsScreen} />
-            <Tab.Screen name="Expenses" component={ExpensesScreen} />
-            <Tab.Screen name="StockOrders" component={StockOrdersScreen} options={{ title: "Stock Orders" }} />
-          </>
-        )
-      }
+      <Tab.Screen name="Inventory" component={InventoryScreen} />
       {isOwner && <Tab.Screen name="Employees" component={EmployeesScreen} />}
       {isOwner && <Tab.Screen name="Subscription" component={SubscriptionScreen} />}
       <Tab.Screen name="Reports" component={ReportsScreen} />
     </Tab.Navigator>
   );
+}
+
+function OwnerEmployeeStack() {
+  const { user } = useAuth();
+  const shopType = user?.shop_type || "MILK";
+  return shopType === "GENERAL" ? <RetailStack /> : <MilkStack />;
 }
 
 function SuperAdminStack() {
