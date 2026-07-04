@@ -120,7 +120,7 @@ function MilkHomeStack() {
   return (
     <MilkHomeNav.Navigator screenOptions={{ headerShown: false }}>
       <MilkHomeNav.Screen name="MilkHomeMain" component={MilkHomeScreen} />
-      <MilkHomeNav.Screen name="Inventory" component={InventoryScreen} options={{ headerShown: true, title: "Inventory" }} />
+      <MilkHomeNav.Screen name="Inventory" component={InventoryScreen} options={{ headerShown: true, title: "Suppliers" }} />
       <MilkHomeNav.Screen name="Expenses" component={ExpensesScreen} options={{ headerShown: true, title: "Expenses" }} />
       <MilkHomeNav.Screen name="Customers" component={CustomersScreen} options={{ headerShown: true, title: "Customers" }} />
       <MilkHomeNav.Screen name="Employees" component={EmployeesScreen} options={{ headerShown: true, title: "Employees" }} />
