@@ -6,7 +6,7 @@ import { useTheme } from "../context/ThemeContext";
 
 export default function MilkProfileScreen() {
   const { user, logout } = useAuth();
-  const { colors } = useTheme();
+  const { accent } = useTheme(); const colors = { primary: accent?.value || "#16a34a" };
 
   const rows = [
     { label: "Username", value: user?.username },

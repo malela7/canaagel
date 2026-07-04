@@ -15,7 +15,7 @@ const PAYMENT_METHODS = [
 ];
 
 export default function POSScreen() {
-  const { colors } = useTheme();
+  const { accent } = useTheme(); const colors = { primary: accent?.value || "#16a34a" };
   const [milkTypes, setMilkTypes]   = useState([]);
   const [packSizes, setPackSizes]   = useState([]);
   const [prices, setPrices]         = useState([]);

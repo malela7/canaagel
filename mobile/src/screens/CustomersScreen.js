@@ -9,7 +9,7 @@ import { useTheme } from "../context/ThemeContext";
 const SCHEDULES = ["CASH", "WEEKLY", "MONTHLY"];
 
 export default function CustomersScreen() {
-  const { colors } = useTheme();
+  const { accent } = useTheme(); const colors = { primary: accent?.value || "#16a34a" };
   const [tab, setTab] = useState("list");
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");

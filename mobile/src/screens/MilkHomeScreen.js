@@ -32,7 +32,7 @@ const GROUPS = [
 
 export default function MilkHomeScreen() {
   const navigation = useNavigation();
-  const { colors } = useTheme();
+  const { accent } = useTheme(); const colors = { primary: accent?.value || "#16a34a" };
   const { user } = useAuth();
   const isOwner = user?.role === "OWNER";
 

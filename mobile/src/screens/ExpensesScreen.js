@@ -20,7 +20,7 @@ const CAT_COLORS = {
 };
 
 export default function ExpensesScreen() {
-  const { colors } = useTheme();
+  const { accent } = useTheme(); const colors = { primary: accent?.value || "#16a34a" };
   const [expenses, setExpenses] = useState([]);
   const [tab, setTab] = useState("list");
   const [form, setForm] = useState({ date: today(), category: "OTHER", amount: "", note: "" });

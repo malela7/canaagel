@@ -13,7 +13,7 @@ function startOfMonth() {
 }
 
 export default function SalesReportScreen() {
-  const { colors } = useTheme();
+  const { accent } = useTheme(); const colors = { primary: accent?.value || "#16a34a" };
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dateFrom, setDateFrom] = useState(startOfMonth());
