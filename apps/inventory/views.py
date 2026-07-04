@@ -86,7 +86,7 @@ class StockViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = Stock.objects.all().select_related("milk_type", "pack_size")
     serializer_class = StockSerializer
     permission_classes = [ManageInventory]
-    http_method_names = ["get", "post", "patch"]
+    http_method_names = ["get", "post", "patch", "delete"]
 
 
 class ShopProductViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
@@ -100,4 +100,4 @@ class PaperBagStockViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = PaperBagStock.objects.all()
     serializer_class = PaperBagStockSerializer
     permission_classes = [ManageInventory]
-    http_method_names = ["get", "post", "patch"]
+    http_method_names = ["get", "post", "patch", "delete"]

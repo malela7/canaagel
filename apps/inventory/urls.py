@@ -30,7 +30,7 @@ urlpatterns = [
     path("customer-prices/set/", SetCustomerPriceView.as_view(), name="customer-price-set"),
 
     path("stock/", StockViewSet.as_view({"get": "list", "post": "create"}), name="stock-list"),
-    path("stock/<int:pk>/", StockViewSet.as_view({"get": "retrieve", "patch": "partial_update"}), name="stock-detail"),
+    path("stock/<int:pk>/", StockViewSet.as_view({"get": "retrieve", "patch": "partial_update", "delete": "destroy"}), name="stock-detail"),
 
     path("paper-bag-stock/", PaperBagStockViewSet.as_view({"get": "list", "post": "create"}), name="paper-bag-stock-list"),
     path("paper-bag-stock/<int:pk>/", PaperBagStockViewSet.as_view(
