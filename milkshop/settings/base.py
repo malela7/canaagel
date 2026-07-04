@@ -35,7 +35,6 @@ INSTALLED_APPS = [
     "apps.sales",
     "apps.delivery",
     "apps.reports",
-    "apps.retail",
 ]
 
 MIDDLEWARE = [
@@ -86,7 +85,12 @@ DATABASES = {
 
 AUTH_USER_MODEL = "accounts.User"
 
-AUTH_PASSWORD_VALIDATORS = []
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Africa/Nairobi"

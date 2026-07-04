@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
@@ -9,7 +9,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -30,7 +29,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <form onSubmit={handleSubmit} className="bg-white shadow rounded p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-amber-700 mb-6 text-center">Canolee</h1>
+        <h1 className="text-2xl font-bold text-green-700 mb-6 text-center">Milkshop SaaS</h1>
         {error && <div className="mb-4 text-red-600 text-sm">{error}</div>}
         <label className="block text-sm font-medium mb-1">Username</label>
         <input
@@ -40,22 +39,13 @@ export default function LoginPage() {
           required
         />
         <label className="block text-sm font-medium mb-1">Password</label>
-        <div className="relative mb-2">
-          <input
-            type={showPassword ? "text" : "password"}
-            className="w-full border rounded px-3 py-2 pr-10"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <button type="button" onClick={() => setShowPassword((p) => !p)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            {showPassword ? "🙈" : "👁️"}
-          </button>
-        </div>
-        <div className="text-right mb-6">
-          <Link to="/forgot-password" className="text-sm text-blue-600">Forgot password?</Link>
-        </div>
+        <input
+          type="password"
+          className="w-full border rounded px-3 py-2 mb-6"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
         <button
           type="submit"
           disabled={loading}

@@ -2,16 +2,15 @@ import React, { useEffect, useState } from "react";
 import api from "../api/client";
 
 const emptyForm = {
-  shop_name: "", shop_phone_number: "", monthly_fee: "", plan: "TRIAL", shop_type: "MILK",
+  shop_name: "", phone_number: "", monthly_fee: "",
   owner_username: "", owner_password: "", owner_first_name: "", owner_last_name: "",
 };
 
 export default function ShopsPage() {
   const [shops, setShops] = useState([]);
   const [form, setForm] = useState(emptyForm);
-  const [errors, setErrors] = useState([]);
+  const [error, setError] = useState(null);
   const [paymentAmounts, setPaymentAmounts] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
 
   const load = () => api.get("/shops/").then((r) => setShops(r.data.results || r.data));
 
@@ -19,7 +18,7 @@ export default function ShopsPage() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    setErrors([]);
+    setError(null);
     try {
       await api.post("/shops/", form);
       setForm(emptyForm);
@@ -36,17 +35,14 @@ export default function ShopsPage() {
           });
         };
         collect(data);
-        setErrors(messages.length ? messages : ["Could not register shop. Check the fields and try again."]);
+        setError(messages.join(" | ") || "Could not register shop. Check the fields and try again.");
       } else {
-        setErrors(["Could not register shop. Check the fields and try again."]);
+        setError("Could not register shop. Check the fields and try again.");
       }
     }
   };
 
-  const suspend = async (id, name) => {
-    if (!window.confirm(`Suspend "${name}"? They will lose access until reactivated.`)) return;
-    await api.post(`/shops/${id}/suspend/`); load();
-  };
+  const suspend = async (id) => { await api.post(`/shops/${id}/suspend/`); load(); };
   const activate = async (id) => { await api.post(`/shops/${id}/activate/`); load(); };
   const extendTrial = async (id) => { await api.post(`/shops/${id}/extend-trial/`); load(); };
   const recordPayment = async (id) => {
@@ -67,26 +63,10 @@ export default function ShopsPage() {
           <p className="text-sm text-gray-500">Add a new shop to your Milkshop SaaS account</p>
         </div>
 
-        {errors.length > 0 && (
-          <ul className="text-red-600 text-sm list-disc pl-5 space-y-0.5">
-            {errors.map((msg, i) => <li key={i}>{msg}</li>)}
-          </ul>
-        )}
+        {error && <div className="text-red-600 text-sm">{error}</div>}
 
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b pb-1">Shop details</h3>
-          <div className="mb-3">
-            <label className="block text-xs text-gray-500 mb-1">Shop type *</label>
-            <div className="flex gap-3">
-              {[{ key: "MILK", label: "Milk Shop" }, { key: "GENERAL", label: "General Retail" }].map((t) => (
-                <label key={t.key} className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="shop_type" value={t.key} checked={form.shop_type === t.key}
-                    onChange={() => setForm({ ...form, shop_type: t.key })} />
-                  <span className="text-sm">{t.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Shop name *</label>
@@ -98,7 +78,7 @@ export default function ShopsPage() {
               <label className="block text-xs text-gray-500 mb-1">Phone number *</label>
               <input className="border rounded px-3 py-2 w-full" placeholder="2547XXXXXXXX" required
                 autoComplete="off" name="shop_phone_field"
-                value={form.shop_phone_number} onChange={(e) => setForm({ ...form, shop_phone_number: e.target.value })} />
+                value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Monthly subscription fee, KES *</label>
@@ -121,15 +101,9 @@ export default function ShopsPage() {
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Password *</label>
-              <div className="relative">
-                <input className="border rounded px-3 py-2 w-full pr-9" type={showPassword ? "text" : "password"} placeholder="Set a password for the owner" required
-                  autoComplete="new-password" name="owner_password_field"
-                  value={form.owner_password} onChange={(e) => setForm({ ...form, owner_password: e.target.value })} />
-                <button type="button" onClick={() => setShowPassword((p) => !p)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm">
-                  {showPassword ? "🙈" : "👁️"}
-                </button>
-              </div>
+              <input className="border rounded px-3 py-2 w-full" type="password" placeholder="Set a password for the owner" required
+                autoComplete="new-password" name="owner_password_field"
+                value={form.owner_password} onChange={(e) => setForm({ ...form, owner_password: e.target.value })} />
             </div>
           </div>
         </div>
@@ -169,19 +143,16 @@ export default function ShopsPage() {
                 {s.status === "SUSPENDED" || s.status === "EXPIRED" ? (
                   <button onClick={() => activate(s.id)} className="bg-green-600 text-white rounded px-3 py-1 text-sm">Activate</button>
                 ) : (
-                  <button onClick={() => suspend(s.id, s.name)} className="bg-red-600 text-white rounded px-3 py-1 text-sm">Suspend</button>
+                  <button onClick={() => suspend(s.id)} className="bg-red-600 text-white rounded px-3 py-1 text-sm">Suspend</button>
                 )}
                 <button onClick={() => extendTrial(s.id)} className="bg-blue-600 text-white rounded px-3 py-1 text-sm">Extend Trial</button>
               </div>
             </div>
-            <div className="flex gap-2 mt-2 items-end">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Amount paid</label>
-                <input type="number" step="0.01" placeholder="e.g. 2000"
-                  className="border rounded px-2 py-1 w-32"
-                  value={paymentAmounts[s.id] || ""}
-                  onChange={(e) => setPaymentAmounts((prev) => ({ ...prev, [s.id]: e.target.value }))} />
-              </div>
+            <div className="flex gap-2 mt-2">
+              <input type="number" step="0.01" placeholder="Amount paid"
+                className="border rounded px-2 py-1 w-32"
+                value={paymentAmounts[s.id] || ""}
+                onChange={(e) => setPaymentAmounts((prev) => ({ ...prev, [s.id]: e.target.value }))} />
               <button onClick={() => recordPayment(s.id)} className="bg-gray-700 text-white rounded px-3 py-1 text-sm">
                 Record Payment (auto-reactivates)
               </button>

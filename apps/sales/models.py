@@ -20,7 +20,6 @@ class Customer(models.Model):
     name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=20, blank=True)
     address = models.CharField(max_length=255, blank=True)
-    house_number = models.CharField(max_length=50, blank=True)
 
     is_walk_in = models.BooleanField(default=False)
     bottle_tracking = models.BooleanField(
@@ -81,12 +80,6 @@ class Order(models.Model):
         UNPAID = "UNPAID", "Unpaid"
         CANCELLED = "CANCELLED", "Cancelled"
 
-    class PaymentMethod(models.TextChoices):
-        CASH = "CASH", "Cash"
-        MPESA = "MPESA", "M-Pesa"
-        BANK = "BANK", "Bank"
-        OTHER = "OTHER", "Other"
-
     shop = models.ForeignKey(
         "shops.Shop", on_delete=models.CASCADE, related_name="orders"
     )
@@ -98,9 +91,6 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     payment_status = models.CharField(
         max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.UNPAID
-    )
-    payment_method = models.CharField(
-        max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.CASH
     )
 
     paper_bags_used = models.IntegerField(default=0)
@@ -142,64 +132,6 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity} x {self.milk_type}/{self.pack_size} @ {self.unit_price}"
-
-
-class ProductSale(models.Model):
-    """A sale of general ShopProducts (not milk inventory items)."""
-
-    class PaymentStatus(models.TextChoices):
-        PAID = "PAID", "Paid"
-        UNPAID = "UNPAID", "Unpaid (added to customer bill)"
-        CANCELLED = "CANCELLED", "Cancelled"
-
-    class PaymentMethod(models.TextChoices):
-        CASH = "CASH", "Cash"
-        MPESA = "MPESA", "M-Pesa"
-        BANK = "BANK", "Bank"
-        OTHER = "OTHER", "Other"
-
-    shop = models.ForeignKey(
-        "shops.Shop", on_delete=models.CASCADE, related_name="product_sales"
-    )
-    customer = models.ForeignKey(
-        Customer, on_delete=models.CASCADE, related_name="product_sales",
-        null=True, blank=True,
-    )
-    is_walk_in = models.BooleanField(default=False)
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    payment_status = models.CharField(
-        max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PAID
-    )
-    payment_method = models.CharField(
-        max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.CASH
-    )
-    note = models.CharField(max_length=255, blank=True)
-    created_by = models.ForeignKey(
-        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
-    )
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=["shop", "created_at"]),
-            models.Index(fields=["shop", "payment_status"]),
-        ]
-
-    def __str__(self):
-        who = self.customer.name if self.customer else "Walk-in"
-        return f"ProductSale #{self.pk} - {who} - {self.total_amount}"
-
-
-class ProductSaleItem(models.Model):
-    sale = models.ForeignKey(ProductSale, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey("inventory.ShopProduct", on_delete=models.CASCADE)
-    quantity = models.DecimalField(max_digits=10, decimal_places=2)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    line_total = models.DecimalField(max_digits=12, decimal_places=2)
-
-    def __str__(self):
-        return f"{self.quantity} x {self.product.name} @ {self.unit_price}"
 
 
 class CustomerPayment(models.Model):

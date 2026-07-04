@@ -1,35 +1,11 @@
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import EmployeePermissions, User
 
 
-def min4(value):
-    if len(value) < 4:
-        raise serializers.ValidationError("Password must be at least 4 characters.")
-
-
-class PasswordResetRequestSerializer(serializers.Serializer):
-    username = serializers.CharField()
-
-
-class PasswordResetConfirmSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    code = serializers.CharField(max_length=6)
-    new_password = serializers.CharField(write_only=True, validators=[min4])
-
-
 class MilkshopTokenObtainPairSerializer(TokenObtainPairSerializer):
-    def validate(self, attrs):
-        username_or_email = attrs.get("username", "")
-        if "@" in username_or_email:
-            try:
-                user = User.objects.get(email__iexact=username_or_email)
-                attrs["username"] = user.username
-            except User.DoesNotExist:
-                pass
-        return super().validate(attrs)
-
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
@@ -55,7 +31,6 @@ class EmployeePermissionsSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     permissions = EmployeePermissionsSerializer(read_only=True)
-    shop_type = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -68,20 +43,13 @@ class UserSerializer(serializers.ModelSerializer):
             "phone_number",
             "role",
             "shop",
-            "shop_type",
             "permissions",
         ]
-        read_only_fields = ["role", "shop", "shop_type"]
-
-    def get_shop_type(self, user):
-        try:
-            return user.shop.shop_type if user.shop_id else None
-        except Exception:
-            return None
+        read_only_fields = ["role", "shop"]
 
 
 class EmployeeCreateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, validators=[min4])
+    password = serializers.CharField(write_only=True, validators=[validate_password])
     permissions = EmployeePermissionsSerializer(required=False)
 
     class Meta:

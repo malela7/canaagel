@@ -16,7 +16,6 @@ from .serializers import (
     STKPushSerializer,
     ShopRegisterSerializer,
     ShopSerializer,
-    ShopUpdateSerializer,
     SubscriptionPaymentSerializer,
 )
 from .services import record_subscription_payment
@@ -37,8 +36,6 @@ class ShopViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return ShopRegisterSerializer
-        if self.action == "partial_update":
-            return ShopUpdateSerializer
         return ShopSerializer
 
     def create(self, request, *args, **kwargs):

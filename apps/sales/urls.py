@@ -4,7 +4,6 @@ from .views import (
     CustomerPaymentViewSet,
     CustomerViewSet,
     OrderViewSet,
-    ProductSaleViewSet,
     StandingOrderItemViewSet,
 )
 
@@ -24,7 +23,4 @@ urlpatterns = [
     path("orders/<int:pk>/cancel/", OrderViewSet.as_view({"post": "cancel"}), name="order-cancel"),
 
     path("payments/", CustomerPaymentViewSet.as_view({"get": "list", "post": "create"}), name="payment-list"),
-
-    path("product-sales/", ProductSaleViewSet.as_view({"get": "list", "post": "create"}), name="product-sale-list"),
-    path("product-sales/<int:pk>/", ProductSaleViewSet.as_view({"get": "retrieve"}), name="product-sale-detail"),
 ]

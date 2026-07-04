@@ -8,10 +8,7 @@ from .views import (
     PriceListView,
     SetCustomerPriceView,
     SetPriceView,
-    ShopProductViewSet,
     StockViewSet,
-    SupplierBillViewSet,
-    SupplierViewSet,
 )
 
 app_name = "inventory"
@@ -32,20 +29,9 @@ urlpatterns = [
     path("customer-prices/set/", SetCustomerPriceView.as_view(), name="customer-price-set"),
 
     path("stock/", StockViewSet.as_view({"get": "list", "post": "create"}), name="stock-list"),
-    path("stock/<int:pk>/", StockViewSet.as_view({"get": "retrieve", "patch": "partial_update", "delete": "destroy"}), name="stock-detail"),
+    path("stock/<int:pk>/", StockViewSet.as_view({"get": "retrieve", "patch": "partial_update"}), name="stock-detail"),
 
     path("paper-bag-stock/", PaperBagStockViewSet.as_view({"get": "list", "post": "create"}), name="paper-bag-stock-list"),
     path("paper-bag-stock/<int:pk>/", PaperBagStockViewSet.as_view(
         {"get": "retrieve", "patch": "partial_update"}), name="paper-bag-stock-detail"),
-
-    path("products/", ShopProductViewSet.as_view({"get": "list", "post": "create"}), name="product-list"),
-    path("products/<int:pk>/", ShopProductViewSet.as_view(
-        {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}), name="product-detail"),
-
-    path("suppliers/", SupplierViewSet.as_view({"get": "list", "post": "create"}), name="supplier-list"),
-    path("suppliers/<int:pk>/", SupplierViewSet.as_view(
-        {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}), name="supplier-detail"),
-    path("suppliers/<int:supplier_pk>/bills/", SupplierBillViewSet.as_view({"get": "list", "post": "create"}), name="supplier-bill-list"),
-    path("suppliers/<int:supplier_pk>/bills/<int:pk>/", SupplierBillViewSet.as_view(
-        {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}), name="supplier-bill-detail"),
 ]

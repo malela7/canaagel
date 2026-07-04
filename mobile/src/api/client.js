@@ -32,7 +32,6 @@ api.interceptors.response.use(
         if (!refresh) throw new Error("No refresh token");
         const { data } = await axios.post(`${API_BASE_URL}/auth/refresh/`, { refresh });
         await AsyncStorage.setItem("access", data.access);
-        if (data.refresh) await AsyncStorage.setItem("refresh", data.refresh);
         refreshQueue.forEach((p) => {
           p.config.headers.Authorization = `Bearer ${data.access}`;
           p.resolve(api(p.config));

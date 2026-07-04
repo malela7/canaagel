@@ -128,6 +128,7 @@ function MilkStack() {
       <Tab.Screen name="POS" component={POSScreen} options={{ title: "Point of Sale" }} />
       <Tab.Screen name="Customers" component={CustomersScreen} />
       <Tab.Screen name="Inventory" component={InventoryScreen} />
+      <Tab.Screen name="Expenses" component={ExpensesScreen} />
       {isOwner && <Tab.Screen name="Employees" component={EmployeesScreen} />}
       {isOwner && <Tab.Screen name="Subscription" component={SubscriptionScreen} />}
       <Tab.Screen name="Reports" component={ReportsScreen} />
