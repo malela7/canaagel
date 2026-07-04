@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,7 +20,32 @@ const REPORT_TABS = [
   { key: "bottles", label: "Bottles" },
 ];
 
+const PERIODS = [
+  { key: "today", label: "Today" },
+  { key: "week", label: "This Week" },
+  { key: "month", label: "This Month" },
+  { key: "all", label: "All Time" },
+];
+
+// ── Collapsible section ────────────────────────────────────
+function Section({ emoji, title, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <View style={styles.section}>
+      <TouchableOpacity style={styles.sectionHeader} onPress={() => setOpen(!open)} activeOpacity={0.7}>
+        <Text style={styles.sectionHeaderText}>{emoji}  {title}</Text>
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color="#9ca3af" />
+      </TouchableOpacity>
+      {open && <View style={styles.sectionBody}>{children}</View>}
+    </View>
+  );
+}
+
 // ── Shared helpers ─────────────────────────────────────────
+function StatGrid({ children }) {
+  return <View style={styles.statsRow}>{children}</View>;
+}
+
 function StatCard({ label, value }) {
   return (
     <View style={styles.statCard}>
@@ -39,40 +63,46 @@ function Empty({ text = "No records for this period." }) {
 function SalesReport({ data }) {
   return (
     <>
-      <View style={styles.statsRow}>
-        <StatCard label="Total" value={`KES ${data.total_sales}`} />
-        <StatCard label="Orders" value={data.order_count} />
-      </View>
-      {(data.by_item || []).length === 0 ? (
-        <Empty />
-      ) : (
-        data.by_item.map((r, i) => (
-          <View key={i} style={styles.row}>
-            <Text style={styles.rowTitle}>{r.milk_type__name} · {r.pack_size__label}</Text>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowMeta}>Qty {r.total_quantity}</Text>
-              <Text style={styles.rowAmount}>KES {r.total_revenue}</Text>
+      <Section emoji="📦" title="Summary">
+        <StatGrid>
+          <StatCard label="Total" value={`KES ${data.total_sales}`} />
+          <StatCard label="Orders" value={data.order_count} />
+        </StatGrid>
+      </Section>
+      <Section emoji="📋" title="Breakdown" defaultOpen={false}>
+        {(data.by_item || []).length === 0 ? (
+          <Empty />
+        ) : (
+          data.by_item.map((r, i) => (
+            <View key={i} style={styles.row}>
+              <Text style={styles.rowTitle}>{r.milk_type__name} · {r.pack_size__label}</Text>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowMeta}>Qty {r.total_quantity}</Text>
+                <Text style={styles.rowAmount}>KES {r.total_revenue}</Text>
+              </View>
             </View>
-          </View>
-        ))
-      )}
+          ))
+        )}
+      </Section>
     </>
   );
 }
 
 // ── Product sales list ─────────────────────────────────────
-function ProductSalesReport() {
+function ProductSalesReport({ period }) {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
-    api.get("/sales/product-sales/?page_size=100")
+    setLoading(true);
+    setError(null);
+    api.get(`/sales/product-sales/?page_size=100&period=${period}`)
       .then(({ data }) => setSales(data.results || data))
       .catch(() => setError("Failed to load product sales."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [period]);
 
   if (loading) return <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />;
   if (error) return <Text style={styles.errorText}>{error}</Text>;
@@ -84,47 +114,51 @@ function ProductSalesReport() {
 
   return (
     <>
-      <View style={styles.statsRow}>
-        <StatCard label="Revenue" value={`KES ${totalRevenue.toFixed(2)}`} />
-        <StatCard label="Paid" value={paid} />
-        <StatCard label="On Bill" value={unpaid} />
-      </View>
-      {sales.map((s) => (
-        <TouchableOpacity key={s.id} onPress={() => setExpanded(expanded === s.id ? null : s.id)}>
-          <View style={styles.saleCard}>
-            <View style={styles.saleHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.saleName}>{s.customer_name || "Walk-in"}</Text>
-                <Text style={styles.saleMeta}>{new Date(s.created_at).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</Text>
-              </View>
-              <View style={{ alignItems: "flex-end" }}>
-                <Text style={styles.saleAmount}>KES {parseFloat(s.total_amount).toFixed(2)}</Text>
-                <View style={[styles.statusBadge, s.payment_status === "PAID" ? styles.badgePaid : styles.badgeUnpaid]}>
-                  <Text style={[styles.statusText, s.payment_status === "PAID" ? styles.statusPaid : styles.statusUnpaid]}>
-                    {s.payment_status === "PAID" ? "Paid" : "On Bill"}
-                  </Text>
+      <Section emoji="💰" title="Overview">
+        <StatGrid>
+          <StatCard label="Revenue" value={`KES ${totalRevenue.toFixed(2)}`} />
+          <StatCard label="Paid" value={paid} />
+          <StatCard label="On Bill" value={unpaid} />
+        </StatGrid>
+      </Section>
+      <Section emoji="🧾" title="Sales" defaultOpen={false}>
+        {sales.map((s) => (
+          <TouchableOpacity key={s.id} onPress={() => setExpanded(expanded === s.id ? null : s.id)}>
+            <View style={styles.saleCard}>
+              <View style={styles.saleHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.saleName}>{s.customer_name || "Walk-in"}</Text>
+                  <Text style={styles.saleMeta}>{new Date(s.created_at).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</Text>
                 </View>
-              </View>
-              <Ionicons name={expanded === s.id ? "chevron-up" : "chevron-down"} size={14} color="#9ca3af" style={{ marginLeft: 8 }} />
-            </View>
-            {expanded === s.id && (
-              <View style={styles.itemsSection}>
-                {(s.items || []).map((it, i) => (
-                  <View key={i} style={styles.itemRow}>
-                    <Text style={styles.itemName}>{it.product_name}</Text>
-                    <Text style={styles.itemQty}>{it.quantity} × KES {it.unit_price}</Text>
-                    <Text style={styles.itemTotal}>KES {it.line_total}</Text>
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={styles.saleAmount}>KES {parseFloat(s.total_amount).toFixed(2)}</Text>
+                  <View style={[styles.statusBadge, s.payment_status === "PAID" ? styles.badgePaid : styles.badgeUnpaid]}>
+                    <Text style={[styles.statusText, s.payment_status === "PAID" ? styles.statusPaid : styles.statusUnpaid]}>
+                      {s.payment_status === "PAID" ? "Paid" : "On Bill"}
+                    </Text>
                   </View>
-                ))}
-                <View style={styles.paymentRow}>
-                  <Ionicons name="card-outline" size={12} color="#9ca3af" />
-                  <Text style={styles.paymentMethodText}>{s.payment_method}</Text>
                 </View>
+                <Ionicons name={expanded === s.id ? "chevron-up" : "chevron-down"} size={14} color="#9ca3af" style={{ marginLeft: 8 }} />
               </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      ))}
+              {expanded === s.id && (
+                <View style={styles.itemsSection}>
+                  {(s.items || []).map((it, i) => (
+                    <View key={i} style={styles.itemRow}>
+                      <Text style={styles.itemName}>{it.product_name}</Text>
+                      <Text style={styles.itemQty}>{it.quantity} × KES {it.unit_price}</Text>
+                      <Text style={styles.itemTotal}>KES {it.line_total}</Text>
+                    </View>
+                  ))}
+                  <View style={styles.paymentRow}>
+                    <Ionicons name="card-outline" size={12} color="#9ca3af" />
+                    <Text style={styles.paymentMethodText}>{s.payment_method}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </Section>
     </>
   );
 }
@@ -134,22 +168,26 @@ function DebtReport({ data }) {
   const total = parseFloat(data.total_debt || 0).toFixed(2);
   return (
     <>
-      <View style={styles.statsRow}>
-        <StatCard label="Total Debt" value={`KES ${total}`} />
-      </View>
-      {!(data.customers || []).length ? (
-        <Empty text="No customers with outstanding debt." />
-      ) : (
-        data.customers.map((c, i) => (
-          <View key={i} style={styles.row}>
-            <Text style={styles.rowTitle}>{c.name}</Text>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowMeta}>{c.phone_number}</Text>
-              <Text style={[styles.rowAmount, { color: "#dc2626" }]}>KES {c.debt_balance}</Text>
+      <Section emoji="💳" title="Overview">
+        <StatGrid>
+          <StatCard label="Total Debt" value={`KES ${total}`} />
+        </StatGrid>
+      </Section>
+      <Section emoji="👥" title="Customers" defaultOpen={false}>
+        {!(data.customers || []).length ? (
+          <Empty text="No customers with outstanding debt." />
+        ) : (
+          data.customers.map((c, i) => (
+            <View key={i} style={styles.row}>
+              <Text style={styles.rowTitle}>{c.name}</Text>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowMeta}>{c.phone_number}</Text>
+                <Text style={[styles.rowAmount, { color: "#dc2626" }]}>KES {c.debt_balance}</Text>
+              </View>
             </View>
-          </View>
-        ))
-      )}
+          ))
+        )}
+      </Section>
     </>
   );
 }
@@ -158,19 +196,23 @@ function DebtReport({ data }) {
 function PaperBagsReport({ data }) {
   return (
     <>
-      <View style={styles.statsRow}>
-        <StatCard label="Bought" value={data.bought} />
-        <StatCard label="Used" value={data.used} />
-      </View>
-      {(data.remaining || []).map((r, i) => (
-        <View key={i} style={styles.row}>
-          <Text style={styles.rowTitle}>{r.label}</Text>
-          <View style={styles.rowRight}>
-            <Text style={styles.rowMeta}>{r.quantity} remaining</Text>
-            {r.is_low && <Text style={styles.lowText}>LOW</Text>}
+      <Section emoji="📊" title="Overview">
+        <StatGrid>
+          <StatCard label="Bought" value={data.bought} />
+          <StatCard label="Used" value={data.used} />
+        </StatGrid>
+      </Section>
+      <Section emoji="📦" title="Stock" defaultOpen={false}>
+        {(data.remaining || []).map((r, i) => (
+          <View key={i} style={styles.row}>
+            <Text style={styles.rowTitle}>{r.label}</Text>
+            <View style={styles.rowRight}>
+              <Text style={styles.rowMeta}>{r.quantity} remaining</Text>
+              {r.is_low && <Text style={styles.lowText}>LOW</Text>}
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
+      </Section>
     </>
   );
 }
@@ -179,22 +221,26 @@ function PaperBagsReport({ data }) {
 function SuppliersReport({ data }) {
   return (
     <>
-      <View style={styles.statsRow}>
-        <StatCard label="Total Cost" value={`KES ${data.total_cost}`} />
-      </View>
-      {!(data.by_supplier || []).length ? (
-        <Empty />
-      ) : (
-        data.by_supplier.map((r, i) => (
-          <View key={i} style={styles.row}>
-            <Text style={styles.rowTitle}>{r.supplier__name} · {r.kind}</Text>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowMeta}>Qty {r.total_quantity}</Text>
-              <Text style={styles.rowAmount}>KES {r.total_cost}</Text>
+      <Section emoji="💰" title="Cost">
+        <StatGrid>
+          <StatCard label="Total Cost" value={`KES ${data.total_cost}`} />
+        </StatGrid>
+      </Section>
+      <Section emoji="🏢" title="By Supplier" defaultOpen={false}>
+        {!(data.by_supplier || []).length ? (
+          <Empty />
+        ) : (
+          data.by_supplier.map((r, i) => (
+            <View key={i} style={styles.row}>
+              <Text style={styles.rowTitle}>{r.supplier__name} · {r.kind}</Text>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowMeta}>Qty {r.total_quantity}</Text>
+                <Text style={styles.rowAmount}>KES {r.total_cost}</Text>
+              </View>
             </View>
-          </View>
-        ))
-      )}
+          ))
+        )}
+      </Section>
     </>
   );
 }
@@ -203,19 +249,23 @@ function SuppliersReport({ data }) {
 function BottlesReport({ data }) {
   return (
     <>
-      <View style={styles.statsRow}>
-        <StatCard label="Total Out" value={data.total_bottles_out} />
-      </View>
-      {!(data.customers || []).length ? (
-        <Empty text="No bottles outstanding." />
-      ) : (
-        data.customers.map((c, i) => (
-          <View key={i} style={styles.row}>
-            <Text style={styles.rowTitle}>{c.name}</Text>
-            <Text style={styles.rowAmount}>{c.bottles_out} bottles</Text>
-          </View>
-        ))
-      )}
+      <Section emoji="🍼" title="Overview">
+        <StatGrid>
+          <StatCard label="Total Out" value={data.total_bottles_out} />
+        </StatGrid>
+      </Section>
+      <Section emoji="👤" title="Customers" defaultOpen={false}>
+        {!(data.customers || []).length ? (
+          <Empty text="No bottles outstanding." />
+        ) : (
+          data.customers.map((c, i) => (
+            <View key={i} style={styles.row}>
+              <Text style={styles.rowTitle}>{c.name}</Text>
+              <Text style={styles.rowAmount}>{c.bottles_out} bottles</Text>
+            </View>
+          ))
+        )}
+      </Section>
     </>
   );
 }
@@ -230,23 +280,35 @@ const AGGREGATED_REPORTS = {
 
 export default function ReportsScreen() {
   const [activeTab, setActiveTab] = useState(null);
+  const [period, setPeriod] = useState("week");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const selectTab = async (key) => {
-    setActiveTab(key);
-    if (key === "product-sales") return; // handled inline by ProductSalesReport
+  const fetchReport = async (key, p) => {
+    if (key === "product-sales") return;
     setLoading(true);
     setError(null);
     setData(null);
     try {
-      const { data } = await api.get(`/reports/${key}/`);
+      const { data } = await api.get(`/reports/${key}/?period=${p}`);
       setData(data);
     } catch {
       setError("Failed to load report.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const selectTab = (key) => {
+    setActiveTab(key);
+    fetchReport(key, period);
+  };
+
+  const selectPeriod = (p) => {
+    setPeriod(p);
+    if (activeTab && activeTab !== "product-sales") {
+      fetchReport(activeTab, p);
     }
   };
 
@@ -256,7 +318,20 @@ export default function ReportsScreen() {
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Reports</Text>
 
-      {/* Tab bar */}
+      {/* Period filter chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 6, paddingRight: 8 }}>
+        {PERIODS.map((p) => (
+          <TouchableOpacity
+            key={p.key}
+            style={[styles.periodChip, period === p.key && styles.periodChipActive]}
+            onPress={() => selectPeriod(p.key)}
+          >
+            <Text style={[styles.periodChipText, period === p.key && styles.periodChipTextActive]}>{p.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Report tab bar */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 6, paddingRight: 8 }}>
         {REPORT_TABS.map((t) => (
           <TouchableOpacity
@@ -270,14 +345,14 @@ export default function ReportsScreen() {
       </ScrollView>
 
       {!activeTab && (
-        <View style={styles.empty}>
+        <View style={styles.emptyState}>
           <Ionicons name="bar-chart-outline" size={36} color="#d1d5db" />
           <Text style={[styles.emptyText, { marginTop: 8 }]}>Select a report above</Text>
         </View>
       )}
 
       {activeTab === "product-sales" ? (
-        <ProductSalesReport />
+        <ProductSalesReport period={period} />
       ) : (
         <View style={styles.resultBox}>
           {loading && <ActivityIndicator color={colors.primary} />}
@@ -292,13 +367,26 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 16 },
   title: { fontSize: 20, fontWeight: "bold", marginBottom: 12 },
+
+  periodChip: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: "#fff" },
+  periodChipActive: { backgroundColor: "#1e40af", borderColor: "#1e40af" },
+  periodChipText: { fontSize: 12, color: colors.text, fontWeight: "500" },
+  periodChipTextActive: { color: "#fff", fontWeight: "700" },
+
   tab: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: "#fff" },
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabText: { fontSize: 12, color: colors.text, fontWeight: "500" },
   tabTextActive: { color: "#fff", fontWeight: "700" },
 
-  resultBox: { backgroundColor: "#fff", borderRadius: 10, padding: 12, marginBottom: 24 },
-  statsRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  resultBox: { marginBottom: 24 },
+
+  // Collapsible section
+  section: { backgroundColor: "#fff", borderRadius: 12, marginBottom: 10, overflow: "hidden", borderWidth: 1, borderColor: "#f3f4f6" },
+  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 12, backgroundColor: "#fafafa", borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  sectionHeaderText: { fontSize: 13, fontWeight: "700", color: colors.text },
+  sectionBody: { padding: 12 },
+
+  statsRow: { flexDirection: "row", gap: 8 },
   statCard: { flex: 1, backgroundColor: "#f3f4f6", borderRadius: 8, padding: 10 },
   statLabel: { fontSize: 11, color: colors.textSecondary, marginBottom: 2 },
   statValue: { fontSize: 16, fontWeight: "700", color: colors.text },
@@ -310,12 +398,13 @@ const styles = StyleSheet.create({
   rowAmount: { fontSize: 14, fontWeight: "700", color: colors.text },
   lowText: { fontSize: 10, fontWeight: "700", color: "#dc2626" },
 
-  empty: { alignItems: "center", paddingTop: 32 },
+  empty: { color: colors.textSecondary, fontSize: 13, paddingVertical: 8 },
+  emptyState: { alignItems: "center", paddingTop: 32 },
   emptyText: { color: colors.textSecondary, fontSize: 13 },
   errorText: { color: "#dc2626", fontSize: 13, textAlign: "center", padding: 12 },
 
   // Product sales cards
-  saleCard: { backgroundColor: "#fff", borderRadius: 10, padding: 12, marginBottom: 8, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 3, elevation: 1 },
+  saleCard: { backgroundColor: "#fff", borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#f3f4f6" },
   saleHeader: { flexDirection: "row", alignItems: "center" },
   saleName: { fontSize: 14, fontWeight: "700", color: colors.text },
   saleMeta: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },

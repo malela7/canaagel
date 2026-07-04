@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+const { width: SCREEN_W } = Dimensions.get("window");
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import api from "../api/client";
@@ -322,33 +325,62 @@ export default function POSScreen() {
               <Text style={st.label}>Tap a product to add</Text>
               <Text style={st.meta}>{cartCount} in cart</Text>
             </View>
-            <View style={st.grid}>
-              {shopProducts.map((p) => {
-                const inCart = productCart[`prod-${p.id}`]?.quantity || 0;
-                const outOfStock = parseFloat(p.stock_quantity) <= 0;
-                return (
-                  <TouchableOpacity
-                    key={p.id}
-                    onPress={() => addToCart({
-                      key: `prod-${p.id}`,
-                      productId: p.id,
-                      name: p.name,
-                      amount: parseFloat(p.sell_price),
-                      quantity: 0,
-                    })}
-                    style={[st.tile, outOfStock && st.tileWarning]}
-                  >
-                    {inCart > 0 && <View style={st.cartBadge}><Text style={st.cartBadgeText}>{inCart}</Text></View>}
-                    <Text style={st.tileTitle}>{p.name}</Text>
-                    <Text style={st.tilePrice}>KES {parseFloat(p.sell_price).toFixed(2)}</Text>
-                    {outOfStock && <Text style={st.tileStockWarn}>Low stock</Text>}
-                  </TouchableOpacity>
-                );
-              })}
-              {shopProducts.length === 0 && (
-                <Text style={st.meta}>No products yet. Add them in the Products tab.</Text>
-              )}
-            </View>
+            {shopProducts.length === 0 ? (
+              <Text style={st.meta}>No products yet. Add them in the Products tab.</Text>
+            ) : (
+              <View style={st.productGrid}>
+                {shopProducts.map((p) => {
+                  const inCart = productCart[`prod-${p.id}`]?.quantity || 0;
+                  const outOfStock = parseFloat(p.stock_quantity) <= 0;
+                  const cardW = (SCREEN_W - 32 - 8) / 2;
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      onPress={() => !outOfStock && addToCart({
+                        key: `prod-${p.id}`,
+                        productId: p.id,
+                        name: p.name,
+                        amount: parseFloat(p.sell_price),
+                        quantity: 0,
+                      })}
+                      style={[st.productCard, { width: cardW }, outOfStock && st.productCardOut]}
+                      activeOpacity={0.85}
+                    >
+                      <View style={[st.productImageBox, outOfStock && { backgroundColor: "#e5e7eb" }]}>
+                        <Ionicons name="camera-outline" size={26} color={outOfStock ? "#9ca3af" : "#d1d5db"} />
+                      </View>
+                      {inCart > 0 && (
+                        <View style={st.productCartBadge}>
+                          <Text style={st.productCartBadgeText}>{inCart}</Text>
+                        </View>
+                      )}
+                      <Text style={st.productName} numberOfLines={2}>{p.name}</Text>
+                      <View style={st.productFooter}>
+                        <View style={[st.productPriceBadge, outOfStock && st.productPriceBadgeOut]}>
+                          <Text style={[st.productPriceText, outOfStock && { color: "#9ca3af" }]}>
+                            {outOfStock ? "Out of stock" : `KES ${parseFloat(p.sell_price).toFixed(0)}`}
+                          </Text>
+                        </View>
+                        {!outOfStock && (
+                          <TouchableOpacity
+                            style={st.productAddBtn}
+                            onPress={() => addToCart({
+                              key: `prod-${p.id}`,
+                              productId: p.id,
+                              name: p.name,
+                              amount: parseFloat(p.sell_price),
+                              quantity: 0,
+                            })}
+                          >
+                            <Ionicons name="add" size={14} color="#fff" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
             <TouchableOpacity
               disabled={cartItems.length === 0}
               onPress={() => setStep("checkout")}
@@ -487,6 +519,20 @@ const st = StyleSheet.create({
   tileStockWarn: { fontSize: 9, color: "#b45309", marginTop: 2 },
   cartBadge: { position: "absolute", top: -6, right: -6, backgroundColor: colors.primary, borderRadius: 10, width: 18, height: 18, alignItems: "center", justifyContent: "center" },
   cartBadgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+
+  // Product mode 2-column cards
+  productGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 8 },
+  productCard: { backgroundColor: "#fff", borderRadius: 14, padding: 10, borderWidth: 1, borderColor: colors.border, position: "relative", overflow: "hidden" },
+  productCardOut: { opacity: 0.6 },
+  productImageBox: { height: 80, borderRadius: 10, backgroundColor: "#f3f4f6", alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  productCartBadge: { position: "absolute", top: 6, right: 6, backgroundColor: colors.primary, borderRadius: 12, minWidth: 20, height: 20, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  productCartBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  productName: { fontSize: 13, fontWeight: "700", color: colors.text, marginBottom: 6 },
+  productFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  productPriceBadge: { backgroundColor: "#dcfce7", borderRadius: 20, paddingVertical: 3, paddingHorizontal: 8 },
+  productPriceBadgeOut: { backgroundColor: "#f3f4f6" },
+  productPriceText: { fontSize: 11, fontWeight: "700", color: colors.primary },
+  productAddBtn: { width: 26, height: 26, borderRadius: 8, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
 
   button: { backgroundColor: colors.primary, borderRadius: 10, padding: 14, alignItems: "center", marginTop: 16 },
   buttonDisabled: { opacity: 0.5 },

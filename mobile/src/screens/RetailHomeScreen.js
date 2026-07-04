@@ -50,17 +50,32 @@ export default function RetailHomeScreen({ navigation }) {
   const go = (screen) => navigation.navigate(screen);
   const switchTab = (tab) => navigation.getParent()?.navigate(tab);
 
-  const tiles = [
-    { label: "Place Order", icon: "cart-outline", color: "#3b82f6", bg: "#eff6ff", onPress: () => switchTab("PlaceOrder") },
-    { label: "Customers", icon: "people-outline", color: "#8b5cf6", bg: "#f5f3ff", onPress: () => go("Customers") },
-    { label: "Products", icon: "cube-outline", color: "#10b981", bg: "#ecfdf5", onPress: () => go("Products") },
-    { label: "Expenses", icon: "receipt-outline", color: "#f59e0b", bg: "#fffbeb", onPress: () => go("Expenses") },
-    { label: "Stock Orders", icon: "file-tray-full-outline", color: "#ef4444", bg: "#fef2f2", onPress: () => go("StockOrders") },
-    { label: "Dashboard", icon: "bar-chart-outline", color: "#06b6d4", bg: "#ecfeff", onPress: () => switchTab("Dashboard") },
-    ...(isOwner ? [
-      { label: "Employees", icon: "person-add-outline", color: "#ec4899", bg: "#fdf2f8", onPress: () => go("Employees") },
-      { label: "Subscription", icon: "card-outline", color: "#6366f1", bg: "#eef2ff", onPress: () => go("Subscription") },
-    ] : []),
+  const tileGroups = [
+    {
+      label: "Orders",
+      tiles: [
+        { label: "Place Order", icon: "cart-outline", color: "#3b82f6", bg: "#eff6ff", onPress: () => switchTab("PlaceOrder") },
+        { label: "Dashboard", icon: "bar-chart-outline", color: "#06b6d4", bg: "#ecfeff", onPress: () => switchTab("Dashboard") },
+      ],
+    },
+    {
+      label: "Catalog",
+      tiles: [
+        { label: "Products", icon: "cube-outline", color: "#10b981", bg: "#ecfdf5", onPress: () => go("Products") },
+        { label: "Stock Orders", icon: "file-tray-full-outline", color: "#ef4444", bg: "#fef2f2", onPress: () => go("StockOrders") },
+      ],
+    },
+    {
+      label: "Business",
+      tiles: [
+        { label: "Customers", icon: "people-outline", color: "#8b5cf6", bg: "#f5f3ff", onPress: () => go("Customers") },
+        { label: "Expenses", icon: "receipt-outline", color: "#f59e0b", bg: "#fffbeb", onPress: () => go("Expenses") },
+        ...(isOwner ? [
+          { label: "Employees", icon: "person-add-outline", color: "#ec4899", bg: "#fdf2f8", onPress: () => go("Employees") },
+          { label: "Subscription", icon: "card-outline", color: "#6366f1", bg: "#eef2ff", onPress: () => go("Subscription") },
+        ] : []),
+      ],
+    },
   ];
 
   const s = styles(accent);
@@ -106,23 +121,27 @@ export default function RetailHomeScreen({ navigation }) {
         </View>
       )}
 
-      {/* Feature grid */}
-      <Text style={s.sectionTitle}>Features</Text>
-      <View style={s.grid}>
-        {tiles.map((tile) => (
-          <TouchableOpacity
-            key={tile.label}
-            style={[s.tile, { backgroundColor: tile.bg, borderColor: tile.color + "33" }]}
-            onPress={tile.onPress}
-            activeOpacity={0.75}
-          >
-            <View style={[s.tileIconWrap, { backgroundColor: tile.color + "20" }]}>
-              <Ionicons name={tile.icon} size={28} color={tile.color} />
-            </View>
-            <Text style={[s.tileLabel, { color: tile.color }]}>{tile.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Grouped feature sections */}
+      {tileGroups.map((group) => (
+        <View key={group.label}>
+          <Text style={s.groupLabel}>{group.label}</Text>
+          <View style={s.grid}>
+            {group.tiles.map((tile) => (
+              <TouchableOpacity
+                key={tile.label}
+                style={[s.tile, { backgroundColor: tile.bg, borderColor: tile.color + "33" }]}
+                onPress={tile.onPress}
+                activeOpacity={0.75}
+              >
+                <View style={[s.tileIconWrap, { backgroundColor: tile.color + "20" }]}>
+                  <Ionicons name={tile.icon} size={28} color={tile.color} />
+                </View>
+                <Text style={[s.tileLabel, { color: tile.color }]}>{tile.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      ))}
 
       <View style={{ height: 30 }} />
     </ScrollView>
@@ -141,7 +160,7 @@ const styles = (accent) =>
     statCard: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 12, alignItems: "center", borderWidth: 1.5 },
     statNum: { fontSize: 16, fontWeight: "900", marginTop: 4 },
     statLabel: { fontSize: 10, color: "#6b7280", marginTop: 2, textAlign: "center" },
-    sectionTitle: { fontSize: 15, fontWeight: "700", color: "#111827", paddingHorizontal: 16, paddingTop: 18, paddingBottom: 10 },
+    groupLabel: { fontSize: 11, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.8, paddingHorizontal: 16, marginTop: 18, marginBottom: 8 },
     grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, gap: 10 },
     tile: { width: "47%", borderRadius: 14, padding: 16, borderWidth: 1.5, alignItems: "center", justifyContent: "center", minHeight: 110 },
     tileIconWrap: { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center", marginBottom: 10 },

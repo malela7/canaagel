@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Dimensions,
   FlatList,
   Modal,
   ScrollView,
@@ -13,6 +14,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+const { width: SCREEN_W } = Dimensions.get("window");
 import { useTheme } from "../context/ThemeContext";
 import api from "../api/client";
 
@@ -219,32 +222,49 @@ export default function RetailPOSScreen() {
       <FlatList
         data={filteredProducts}
         keyExtractor={(i) => String(i.id)}
-        numColumns={3}
+        numColumns={2}
         contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
-        columnWrapperStyle={{ gap: 8 }}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        columnWrapperStyle={{ gap: 10 }}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         renderItem={({ item }) => {
           const inCart = cart[item.id];
           const outOfStock = parseFloat(item.quantity) <= 0;
+          const cardW = (SCREEN_W - 24 - 10) / 2;
           return (
             <TouchableOpacity
-              style={[s.tile, outOfStock && s.tileOut, inCart && { borderColor: accent, borderWidth: 2 }]}
+              style={[s.card, { width: cardW }, outOfStock && s.cardOut]}
               onPress={() => !outOfStock && addToCart(item)}
-              disabled={outOfStock}
+              activeOpacity={0.85}
             >
-              <View style={[s.tileIconBg, { backgroundColor: accent + "22" }]}>
-                <Ionicons name="cube-outline" size={22} color={accent} />
+              {/* Image placeholder */}
+              <View style={[s.cardImageBox, outOfStock && { backgroundColor: "#e5e7eb" }]}>
+                <Ionicons name="camera-outline" size={30} color={outOfStock ? "#9ca3af" : "#d1d5db"} />
               </View>
-              <Text style={s.tileName} numberOfLines={2}>{item.name}</Text>
-              {item.category_name ? <Text style={s.tileCat}>{item.category_name}</Text> : null}
-              <Text style={[s.tilePrice, { color: accent }]}>
-                {outOfStock ? "Out of stock" : `KES ${parseFloat(item.sell_price).toFixed(0)}`}
-              </Text>
+              {/* Cart badge */}
               {inCart && (
-                <View style={[s.tileCartBadge, { backgroundColor: accent }]}>
-                  <Text style={s.tileCartBadgeText}>{inCart.qty}</Text>
+                <View style={[s.cardBadge, { backgroundColor: accent }]}>
+                  <Text style={s.cardBadgeText}>{inCart.qty}</Text>
                 </View>
               )}
+              {/* Name + category */}
+              <Text style={s.cardName} numberOfLines={2}>{item.name}</Text>
+              {item.category_name ? <Text style={s.cardCat}>{item.category_name}</Text> : null}
+              {/* Price + add button */}
+              <View style={s.cardFooter}>
+                <View style={[s.priceBadge, outOfStock && s.priceBadgeOut]}>
+                  <Text style={[s.priceText, outOfStock && { color: "#9ca3af" }]}>
+                    {outOfStock ? "Out of stock" : `KES ${parseFloat(item.sell_price).toFixed(0)}`}
+                  </Text>
+                </View>
+                {!outOfStock && (
+                  <TouchableOpacity
+                    style={[s.addBtn, { backgroundColor: accent }]}
+                    onPress={() => addToCart(item)}
+                  >
+                    <Ionicons name="add" size={16} color="#fff" />
+                  </TouchableOpacity>
+                )}
+              </View>
             </TouchableOpacity>
           );
         }}
@@ -395,14 +415,18 @@ const styles = (accent) =>
     catScroll: { marginTop: 10, marginBottom: 4, flexGrow: 0 },
     catTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#e5e7eb", backgroundColor: "#fff" },
     catTabText: { fontSize: 13, color: "#374151" },
-    tile: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 10, alignItems: "center", borderWidth: 1, borderColor: "#e5e7eb", position: "relative", overflow: "hidden" },
-    tileOut: { opacity: 0.45 },
-    tileIconBg: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 6 },
-    tileName: { fontSize: 12, fontWeight: "700", color: "#111827", textAlign: "center" },
-    tileCat: { fontSize: 10, color: "#9ca3af", marginTop: 2 },
-    tilePrice: { fontSize: 13, fontWeight: "800", marginTop: 4 },
-    tileCartBadge: { position: "absolute", top: 4, right: 4, borderRadius: 10, width: 18, height: 18, alignItems: "center", justifyContent: "center" },
-    tileCartBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+    card: { backgroundColor: "#fff", borderRadius: 14, padding: 10, borderWidth: 1, borderColor: "#e5e7eb", position: "relative", overflow: "hidden" },
+    cardOut: { opacity: 0.6 },
+    cardImageBox: { height: 90, borderRadius: 10, backgroundColor: "#f3f4f6", alignItems: "center", justifyContent: "center", marginBottom: 8 },
+    cardBadge: { position: "absolute", top: 6, right: 6, borderRadius: 12, minWidth: 22, height: 22, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+    cardBadgeText: { color: "#fff", fontSize: 11, fontWeight: "800" },
+    cardName: { fontSize: 13, fontWeight: "700", color: "#111827", marginBottom: 2 },
+    cardCat: { fontSize: 11, color: "#9ca3af", marginBottom: 6 },
+    cardFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
+    priceBadge: { backgroundColor: "#dcfce7", borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 },
+    priceBadgeOut: { backgroundColor: "#f3f4f6" },
+    priceText: { fontSize: 12, fontWeight: "700", color: "#16a34a" },
+    addBtn: { width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center" },
     empty: { alignItems: "center", paddingTop: 60 },
     emptyText: { color: "#9ca3af", marginTop: 8, fontSize: 15 },
     floatingCart: { position: "absolute", bottom: 20, left: 20, right: 20, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 14, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 8 },
