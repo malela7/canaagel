@@ -5,11 +5,12 @@ from rest_framework.views import APIView
 from apps.common.mixins import ShopScopedQuerysetMixin
 from apps.common.permissions import HasShopPermission
 
-from .models import Customer, CustomerPayment, Order, StandingOrderItem
+from .models import Customer, CustomerPayment, Expense, Order, StandingOrderItem
 from .serializers import (
     CreateOrderSerializer,
     CustomerPaymentSerializer,
     CustomerSerializer,
+    ExpenseSerializer,
     OrderSerializer,
     StandingOrderItemSerializer,
 )
@@ -18,6 +19,7 @@ from .services import cancel_order
 ManageCustomers = HasShopPermission("can_manage_customers")
 UsePOS = HasShopPermission("can_use_pos")
 RecordPayments = HasShopPermission("can_record_payments")
+ManageExpenses = HasShopPermission("can_manage_inventory")
 
 
 class CustomerViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
@@ -75,3 +77,13 @@ class CustomerPaymentViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         payment = serializer.save()
         return Response(self.get_serializer(payment).data, status=status.HTTP_201_CREATED)
+
+
+class ExpenseViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
+    queryset = Expense.objects.all()
+    serializer_class = ExpenseSerializer
+    permission_classes = [ManageExpenses]
+    http_method_names = ["get", "post", "patch", "delete"]
+
+    def perform_create(self, serializer):
+        serializer.save(shop=self.request.user.shop, created_by=self.request.user)

@@ -541,23 +541,24 @@ export default function InventoryPage() {
       {tab === "goods" && (
         <div className="space-y-4">
           {/* Meta row */}
-          <div className="flex gap-4 flex-wrap">
+          <div className="flex gap-4 flex-wrap items-end">
             <div>
               <label className="text-xs text-gray-500 block mb-1">Supplier</label>
-              <input className="border border-gray-300 rounded px-3 py-2 text-sm w-52 focus:outline-none focus:ring-1 focus:ring-green-500"
-                placeholder="Supplier name (optional)" value={goodsSupplier} onChange={e => setGoodsSupplier(e.target.value)} />
+              <select className="border border-gray-300 rounded px-3 py-2 text-sm w-52 focus:outline-none focus:ring-1 focus:ring-green-500"
+                value={goodsSupplier} onChange={e => setGoodsSupplier(e.target.value)}>
+                <option value="">-- Select supplier --</option>
+                {suppliers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="text-xs text-gray-500 block mb-1">Date Received</label>
               <input type="date" className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
                 value={goodsDate} onChange={e => setGoodsDate(e.target.value)} />
             </div>
-            <div className="flex items-end">
-              <button onClick={() => setGoodsRows(p => [...p, emptyGoodsRow()])}
-                className="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-4 py-2 rounded">
-                + Add Product
-              </button>
-            </div>
+            <button onClick={() => setGoodsRows(p => [...p, emptyGoodsRow()])}
+              className="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-4 py-2 rounded">
+              + Add Product
+            </button>
           </div>
 
           {/* Goods table */}

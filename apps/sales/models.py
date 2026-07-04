@@ -134,6 +134,34 @@ class OrderItem(models.Model):
         return f"{self.quantity} x {self.milk_type}/{self.pack_size} @ {self.unit_price}"
 
 
+class Expense(models.Model):
+    class Category(models.TextChoices):
+        TRANSPORT = "TRANSPORT", "Transport"
+        SALARY = "SALARY", "Salary"
+        UTILITY = "UTILITY", "Utility"
+        MAINTENANCE = "MAINTENANCE", "Maintenance"
+        PURCHASE = "PURCHASE", "Purchase"
+        OTHER = "OTHER", "Other"
+
+    shop = models.ForeignKey(
+        "shops.Shop", on_delete=models.CASCADE, related_name="expenses"
+    )
+    date = models.DateField()
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    note = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-created_at"]
+
+    def __str__(self):
+        return f"{self.date} {self.category} {self.amount}"
+
+
 class CustomerPayment(models.Model):
     """A payment made by a customer towards their debt_balance."""
 

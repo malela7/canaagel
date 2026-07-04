@@ -14,6 +14,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
 import ShopsPage from "./pages/ShopsPage";
 import SubscriptionsReportPage from "./pages/SubscriptionsReportPage";
+import ExpensesPage from "./pages/ExpensesPage";
 
 function HomeRedirect() {
   const { user } = useAuth();
@@ -40,6 +41,9 @@ export default function App() {
             } />
             <Route path="/inventory" element={
               <RequireAuth roles={["OWNER", "EMPLOYEE"]}><InventoryPage /></RequireAuth>
+            } />
+            <Route path="/expenses" element={
+              <RequireAuth roles={["OWNER", "EMPLOYEE"]}><ExpensesPage /></RequireAuth>
             } />
             <Route path="/delivery" element={
               <RequireAuth roles={["OWNER", "EMPLOYEE"]}><DeliveryPage /></RequireAuth>

@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     CustomerPaymentViewSet,
     CustomerViewSet,
+    ExpenseViewSet,
     OrderViewSet,
     StandingOrderItemViewSet,
 )
@@ -23,4 +24,7 @@ urlpatterns = [
     path("orders/<int:pk>/cancel/", OrderViewSet.as_view({"post": "cancel"}), name="order-cancel"),
 
     path("payments/", CustomerPaymentViewSet.as_view({"get": "list", "post": "create"}), name="payment-list"),
+
+    path("expenses/", ExpenseViewSet.as_view({"get": "list", "post": "create"}), name="expense-list"),
+    path("expenses/<int:pk>/", ExpenseViewSet.as_view({"get": "retrieve", "patch": "partial_update", "delete": "destroy"}), name="expense-detail"),
 ]

@@ -1,7 +1,14 @@
 from rest_framework import serializers
 
-from .models import Customer, CustomerPayment, Order, OrderItem, StandingOrderItem
+from .models import Customer, CustomerPayment, Expense, Order, OrderItem, StandingOrderItem
 from .services import create_order, record_customer_payment
+
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expense
+        fields = ["id", "date", "category", "amount", "note", "created_by", "created_at"]
+        read_only_fields = ["created_by", "created_at"]
 
 
 class CustomerSerializer(serializers.ModelSerializer):
