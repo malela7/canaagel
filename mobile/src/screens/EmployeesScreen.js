@@ -5,7 +5,7 @@ import api from "../api/client";
 import { colors } from "../theme";
 
 const PERMISSIONS = [
-  { key: "can_sell", label: "Use POS / sell" },
+  { key: "can_use_pos", label: "Use POS / sell" },
   { key: "can_manage_customers", label: "Manage customers" },
   { key: "can_manage_inventory", label: "Manage inventory & prices" },
   { key: "can_view_inventory", label: "View inventory" },
@@ -16,7 +16,7 @@ const PERMISSIONS = [
 ];
 
 const defaultPerms = Object.fromEntries(PERMISSIONS.map((p) => [p.key, false]));
-const emptyForm = { username: "", password: "", first_name: "", last_name: "", ...defaultPerms };
+const emptyForm = { username: "", password: "", first_name: "", last_name: "", permissions: { ...defaultPerms } };
 
 export default function EmployeesScreen() {
   const [employees, setEmployees] = useState([]);
@@ -48,7 +48,13 @@ export default function EmployeesScreen() {
     }
     setSaving(true);
     try {
-      await api.post("/auth/employees/", form);
+      await api.post("/auth/employees/", {
+        username: form.username.trim(),
+        password: form.password,
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        permissions: form.permissions,
+      });
       setForm(emptyForm);
       setShowPassword(false);
       load();
@@ -73,14 +79,14 @@ export default function EmployeesScreen() {
           {
             text: "Remove", style: "destructive",
             onPress: async () => {
-              await api.patch(`/auth/employees/${emp.id}/`, { [key]: false });
+              await api.patch(`/auth/employees/${emp.id}/`, { permissions: { ...emp.permissions, [key]: false } });
               load();
             },
           },
         ]
       );
     } else {
-      api.patch(`/auth/employees/${emp.id}/`, { [key]: true }).then(load);
+      api.patch(`/auth/employees/${emp.id}/`, { permissions: { ...emp.permissions, [key]: true } }).then(load);
     }
   };
 
@@ -132,8 +138,8 @@ export default function EmployeesScreen() {
                 <View key={p.key} style={styles.permRow}>
                   <Text style={styles.permLabel}>{p.label}</Text>
                   <Switch
-                    value={!!form[p.key]}
-                    onValueChange={(v) => setForm({ ...form, [p.key]: v })}
+                    value={!!form.permissions[p.key]}
+                    onValueChange={(v) => setForm({ ...form, permissions: { ...form.permissions, [p.key]: v } })}
                     trackColor={{ true: colors.primary }}
                   />
                 </View>
@@ -164,8 +170,8 @@ export default function EmployeesScreen() {
               <View key={p.key} style={styles.permRow}>
                 <Text style={styles.permLabel}>{p.label}</Text>
                 <Switch
-                  value={!!emp[p.key]}
-                  onValueChange={(v) => togglePermission(emp, p.key, !!emp[p.key])}
+                  value={!!emp.permissions?.[p.key]}
+                  onValueChange={() => togglePermission(emp, p.key, !!emp.permissions?.[p.key])}
                   trackColor={{ true: colors.primary }}
                 />
               </View>
