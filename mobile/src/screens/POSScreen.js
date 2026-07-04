@@ -12,11 +12,12 @@ import {
   View,
 } from "react-native";
 
-const { width: SCREEN_W } = Dimensions.get("window");
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import api from "../api/client";
 import { colors } from "../theme";
+
+const { width: SCREEN_W } = Dimensions.get("window");
 
 const PAYMENT_METHODS = [
   { key: "CASH", label: "Cash" },

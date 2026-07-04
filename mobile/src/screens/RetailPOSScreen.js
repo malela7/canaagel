@@ -15,9 +15,10 @@ import {
   View,
 } from "react-native";
 
-const { width: SCREEN_W } = Dimensions.get("window");
 import { useTheme } from "../context/ThemeContext";
 import api from "../api/client";
+
+const { width: SCREEN_W } = Dimensions.get("window");
 
 const PAYMENT_METHODS = [
   { key: "CASH", label: "Cash", icon: "cash-outline" },
