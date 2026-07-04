@@ -26,9 +26,13 @@ import SuperAdminSettingsScreen from "./src/screens/SuperAdminSettingsScreen";
 import RetailPOSScreen from "./src/screens/RetailPOSScreen";
 import RetailHomeScreen from "./src/screens/RetailHomeScreen";
 import RetailProfileScreen from "./src/screens/RetailProfileScreen";
+import MilkHomeScreen from "./src/screens/MilkHomeScreen";
+import MilkProfileScreen from "./src/screens/MilkProfileScreen";
+import SalesReportScreen from "./src/screens/SalesReportScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const MilkHomeNav = createNativeStackNavigator();
 
 function LogoutButton() {
   const { logout } = useAuth();
@@ -112,26 +116,41 @@ function RetailStack() {
   );
 }
 
+function MilkHomeStack() {
+  return (
+    <MilkHomeNav.Navigator screenOptions={{ headerShown: false }}>
+      <MilkHomeNav.Screen name="MilkHomeMain" component={MilkHomeScreen} />
+      <MilkHomeNav.Screen name="Inventory" component={InventoryScreen} options={{ headerShown: true, title: "Inventory" }} />
+      <MilkHomeNav.Screen name="Expenses" component={ExpensesScreen} options={{ headerShown: true, title: "Expenses" }} />
+      <MilkHomeNav.Screen name="Customers" component={CustomersScreen} options={{ headerShown: true, title: "Customers" }} />
+      <MilkHomeNav.Screen name="Employees" component={EmployeesScreen} options={{ headerShown: true, title: "Employees" }} />
+      <MilkHomeNav.Screen name="Supplier" component={InventoryScreen} options={{ headerShown: true, title: "Suppliers", initialParams: { initialTab: "suppliers" } }} />
+      <MilkHomeNav.Screen name="SalesReport" component={SalesReportScreen} options={{ headerShown: true, title: "Sell Report" }} />
+    </MilkHomeNav.Navigator>
+  );
+}
+
 function MilkStack() {
   const { accent } = useTheme();
-  const { user } = useAuth();
-  const isOwner = user?.role === "OWNER";
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerRight: () => <LogoutButton />,
+      screenOptions={{
         tabBarActiveTintColor: accent,
-        tabBarIcon: (props) => ownerTabIcon({ route, ...props }),
-      })}
+        tabBarInactiveTintColor: "#9ca3af",
+        tabBarStyle: { borderTopWidth: 1, borderTopColor: "#f3f4f6", height: 60, paddingBottom: 8 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        headerShown: false,
+      }}
     >
-      <Tab.Screen name="POS" component={POSScreen} options={{ title: "Point of Sale" }} />
-      <Tab.Screen name="Customers" component={CustomersScreen} />
-      <Tab.Screen name="Inventory" component={InventoryScreen} />
-      <Tab.Screen name="Expenses" component={ExpensesScreen} />
-      {isOwner && <Tab.Screen name="Employees" component={EmployeesScreen} />}
-      {isOwner && <Tab.Screen name="Subscription" component={SubscriptionScreen} />}
-      <Tab.Screen name="Reports" component={ReportsScreen} />
+      <Tab.Screen name="POS" component={POSScreen}
+        options={{ title: "Point of Sell", tabBarIcon: ({ color, size }) => <Ionicons name="cart-outline" size={size} color={color} />, headerShown: true, headerTitle: "Point of Sale", headerRight: () => <LogoutButton /> }} />
+      <Tab.Screen name="Home" component={MilkHomeStack}
+        options={{ title: "Home", tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} /> }} />
+      <Tab.Screen name="Dashboard" component={ReportsScreen}
+        options={{ title: "Dashboard", tabBarIcon: ({ color, size }) => <Ionicons name="bar-chart-outline" size={size} color={color} />, headerShown: true, headerTitle: "Dashboard", headerRight: () => <LogoutButton /> }} />
+      <Tab.Screen name="Profile" component={MilkProfileScreen}
+        options={{ title: "Profile", tabBarIcon: ({ color, size }) => <Ionicons name="person-circle-outline" size={size} color={color} />, headerShown: true, headerTitle: "Profile", headerRight: () => <LogoutButton /> }} />
     </Tab.Navigator>
   );
 }
