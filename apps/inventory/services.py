@@ -5,7 +5,7 @@ from .models import CustomerPrice, Price
 
 
 @transaction.atomic
-def set_current_price(*, shop, milk_type, pack_size, amount):
+def set_current_price(*, shop, milk_type, pack_size, amount, cost_price=0):
     """Close any existing current price for this combo and create a new one."""
     now = timezone.now()
     Price.objects.filter(
@@ -17,6 +17,7 @@ def set_current_price(*, shop, milk_type, pack_size, amount):
         milk_type=milk_type,
         pack_size=pack_size,
         amount=amount,
+        cost_price=cost_price,
         is_current=True,
         valid_from=now,
     )

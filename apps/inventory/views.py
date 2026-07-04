@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from apps.common.mixins import ShopScopedQuerysetMixin
 from apps.common.permissions import HasShopPermission
 
-from .models import CustomerPrice, MilkType, PackSize, PaperBagStock, Price, Stock
+from .models import CustomerPrice, MilkType, PackSize, PaperBagStock, Price, ShopProduct, Stock, Supplier, SupplierBill
 from .serializers import (
     CustomerPriceSerializer,
     MilkTypeSerializer,
@@ -14,7 +14,10 @@ from .serializers import (
     PriceSerializer,
     SetCustomerPriceSerializer,
     SetPriceSerializer,
+    ShopProductSerializer,
     StockSerializer,
+    SupplierBillSerializer,
+    SupplierSerializer,
 )
 from .services import set_current_customer_price, set_current_price
 
@@ -53,6 +56,7 @@ class SetPriceView(APIView):
             milk_type=serializer.validated_data["milk_type"],
             pack_size=serializer.validated_data["pack_size"],
             amount=serializer.validated_data["amount"],
+            cost_price=serializer.validated_data.get("cost_price", 0),
         )
         return Response(PriceSerializer(price).data, status=status.HTTP_201_CREATED)
 
@@ -85,11 +89,41 @@ class StockViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = Stock.objects.all().select_related("milk_type", "pack_size")
     serializer_class = StockSerializer
     permission_classes = [ManageInventory]
-    http_method_names = ["get", "post", "patch"]
+    http_method_names = ["get", "post", "patch", "delete"]
+
+
+class ShopProductViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
+    queryset = ShopProduct.objects.all().order_by("name")
+    serializer_class = ShopProductSerializer
+    permission_classes = [ManageInventory]
+    http_method_names = ["get", "post", "patch", "delete"]
 
 
 class PaperBagStockViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = PaperBagStock.objects.all()
     serializer_class = PaperBagStockSerializer
     permission_classes = [ManageInventory]
-    http_method_names = ["get", "post", "patch"]
+    http_method_names = ["get", "post", "patch", "delete"]
+
+
+class SupplierViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
+    queryset = Supplier.objects.all().prefetch_related("bills")
+    serializer_class = SupplierSerializer
+    permission_classes = [ManageInventory]
+    http_method_names = ["get", "post", "patch", "delete"]
+
+
+class SupplierBillViewSet(viewsets.ModelViewSet):
+    serializer_class = SupplierBillSerializer
+    permission_classes = [ManageInventory]
+    http_method_names = ["get", "post", "patch", "delete"]
+
+    def get_queryset(self):
+        return SupplierBill.objects.filter(
+            supplier__shop=self.request.user.shop,
+            supplier_id=self.kwargs["supplier_pk"],
+        )
+
+    def perform_create(self, serializer):
+        supplier = Supplier.objects.get(pk=self.kwargs["supplier_pk"], shop=self.request.user.shop)
+        serializer.save(supplier=supplier)
