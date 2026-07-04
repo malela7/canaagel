@@ -15,11 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import api from "../api/client";
 import { colors } from "../theme";
 
-const TABS = ["Setup", "Suppliers", "Goods Received"];
-
-// ── Helpers ────────────────────────────────────────────────
-const AVATAR_COLORS = ["#3b82f6","#8b5cf6","#ec4899","#f59e0b","#10b981","#ef4444","#06b6d4","#84cc16"];
-const avatarColor = (idx) => AVATAR_COLORS[idx % AVATAR_COLORS.length];
+const TABS = ["Setup", "Goods Received"];
 
 // ── Edit Price/Stock Modal ─────────────────────────────────
 function EditComboModal({ combo, onSave, onClose }) {
@@ -100,65 +96,6 @@ const ms = StyleSheet.create({
   save: { flex: 2, backgroundColor: colors.primary, borderRadius: 10, padding: 12, alignItems: "center" },
   saveTxt: { color: "#fff", fontWeight: "700", fontSize: 15 },
 });
-
-// ── Bill Modal ─────────────────────────────────────────────
-function AddBillModal({ supplier, onSave, onClose }) {
-  const [total, setTotal] = useState("");
-  const [paid, setPaid] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    if (!total.trim()) { Alert.alert("Missing", "Enter total amount."); return; }
-    setSaving(true);
-    try {
-      await api.post(`/inventory/suppliers/${supplier.id}/bills/`, {
-        date,
-        total_amount: parseFloat(total) || 0,
-        amount_paid: parseFloat(paid) || 0,
-        note,
-      });
-      onSave();
-    } catch {
-      Alert.alert("Error", "Could not save bill.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={ms.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={ms.sheet}>
-              <View style={ms.handle} />
-              <Text style={ms.title}>Add Bill — {supplier?.name}</Text>
-              <Text style={ms.sub}>Record a delivery/bill</Text>
-              <Text style={ms.lbl}>Date (YYYY-MM-DD)</Text>
-              <TextInput style={ms.inp} value={date} onChangeText={setDate} autoFocus />
-              <Text style={ms.lbl}>Total amount (KES)</Text>
-              <TextInput style={ms.inp} keyboardType="decimal-pad" value={total} onChangeText={setTotal} />
-              <Text style={ms.lbl}>Amount paid (KES)</Text>
-              <TextInput style={ms.inp} keyboardType="decimal-pad" value={paid} onChangeText={setPaid} placeholder="0" />
-              <Text style={ms.lbl}>Note</Text>
-              <TextInput style={ms.inp} value={note} onChangeText={setNote} placeholder="Optional" />
-              <View style={ms.row}>
-                <TouchableOpacity style={ms.cancel} onPress={onClose}>
-                  <Text style={ms.cancelTxt}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={ms.save} onPress={save} disabled={saving}>
-                  {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={ms.saveTxt}>Save</Text>}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
-  );
-}
 
 // ── Setup Tab ──────────────────────────────────────────────
 const emptySetupRow = () => ({
@@ -429,139 +366,6 @@ function SetupTab({ milkTypes, packSizes, prices, stock, onRefresh }) {
         </View>
       </ScrollView>
     </View>
-  );
-}
-
-// ── Suppliers Tab ──────────────────────────────────────────
-function SuppliersTab() {
-  const [suppliers, setSuppliers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [note, setNote] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [expanded, setExpanded] = useState(null);
-  const [billModal, setBillModal] = useState(null);
-  const [search, setSearch] = useState("");
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("/inventory/suppliers/");
-      setSuppliers(res.data.results || res.data);
-    } catch {
-      Alert.alert("Error", "Failed to load suppliers.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const addSupplier = async () => {
-    if (!name.trim()) { Alert.alert("Missing", "Enter supplier name."); return; }
-    setAdding(true);
-    try {
-      await api.post("/inventory/suppliers/", { name: name.trim(), phone: phone.trim(), note: note.trim() });
-      setName(""); setPhone(""); setNote(""); load();
-    } catch (e) {
-      const msg = e?.response?.data?.name?.[0] || "Could not add supplier.";
-      Alert.alert("Error", msg);
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  if (loading) return <View style={s.centered}><ActivityIndicator color={colors.primary} /></View>;
-
-  return (
-    <ScrollView contentContainerStyle={s.padded}>
-      {billModal && (
-        <AddBillModal
-          supplier={billModal}
-          onSave={() => { setBillModal(null); load(); }}
-          onClose={() => setBillModal(null)}
-        />
-      )}
-
-      {/* Add supplier form */}
-      <View style={s.card}>
-        <Text style={s.sectionLabel}>REGISTER SUPPLIER</Text>
-        <TextInput style={s.input} placeholder="Supplier name *" value={name} onChangeText={setName} />
-        <TextInput style={[s.input, { marginTop: 8 }]} placeholder="Phone number (optional)" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
-        <TextInput
-          style={[s.input, { marginTop: 8, height: 64, textAlignVertical: "top" }]}
-          placeholder="Goods / products they supply (e.g. Fresh milk, Yoghurt)"
-          multiline
-          value={note}
-          onChangeText={setNote}
-        />
-        <TouchableOpacity style={[s.primaryBtn, { marginTop: 10 }]} onPress={addSupplier} disabled={adding}>
-          {adding ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnTxt}>+ Register Supplier</Text>}
-        </TouchableOpacity>
-      </View>
-
-      {/* Search */}
-      <TextInput
-        style={[s.input, { marginBottom: 8 }]}
-        placeholder="Search suppliers..."
-        value={search}
-        onChangeText={setSearch}
-      />
-
-      {/* Supplier list */}
-      <Text style={s.sectionLabel}>SUPPLIERS ({suppliers.filter(sup => !search || sup.name.toLowerCase().includes(search.toLowerCase()) || (sup.phone || "").includes(search)).length})</Text>
-      {suppliers.length === 0 && <Text style={s.empty}>No suppliers yet.</Text>}
-      {suppliers.filter(sup => !search || sup.name.toLowerCase().includes(search.toLowerCase()) || (sup.phone || "").includes(search) || (sup.note || "").toLowerCase().includes(search.toLowerCase())).map((sup, i) => {
-        const owed = sup.total_owed ?? 0;
-        const isOpen = expanded === sup.id;
-        return (
-          <View key={sup.id} style={s.card}>
-            <TouchableOpacity style={s.supRow} onPress={() => setExpanded(isOpen ? null : sup.id)}>
-              <View style={[s.supAvatar, { backgroundColor: avatarColor(i) }]}>
-                <Text style={s.supAvatarTxt}>{(sup.name || "?").slice(0, 2).toUpperCase()}</Text>
-              </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={s.supName}>{sup.name}</Text>
-                {sup.phone ? <Text style={s.supPhone}>{sup.phone}</Text> : null}
-                {sup.note ? <Text style={s.supGoods} numberOfLines={1}>📦 {sup.note}</Text> : null}
-              </View>
-              {Number(owed) > 0 && (
-                <View style={s.owedBadge}>
-                  <Text style={s.owedTxt}>KES {Number(owed).toLocaleString()}</Text>
-                </View>
-              )}
-              <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#9ca3af" style={{ marginLeft: 6 }} />
-            </TouchableOpacity>
-
-            {isOpen && (
-              <View style={{ marginTop: 10 }}>
-                {(sup.bills || []).length === 0 && <Text style={s.empty}>No bills yet.</Text>}
-                {(sup.bills || []).map((bill) => (
-                  <View key={bill.id} style={s.billRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.billDate}>{bill.date}</Text>
-                      {bill.note ? <Text style={s.billNote}>{bill.note}</Text> : null}
-                    </View>
-                    <View style={{ alignItems: "flex-end" }}>
-                      <Text style={s.billTotal}>KES {Number(bill.total_amount).toLocaleString()}</Text>
-                      {Number(bill.balance) > 0
-                        ? <Text style={s.billBalance}>Owed: {Number(bill.balance).toLocaleString()}</Text>
-                        : <Text style={s.billPaid}>Paid</Text>
-                      }
-                    </View>
-                  </View>
-                ))}
-                <TouchableOpacity style={s.addLineBtn} onPress={() => setBillModal(sup)}>
-                  <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
-                  <Text style={s.addLineTxt}>Add Bill</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        );
-      })}
-    </ScrollView>
   );
 }
 
@@ -840,7 +644,7 @@ function GoodsTab({ milkTypes, packSizes, stock, onRefresh }) {
 // ── Main Screen ────────────────────────────────────────────
 export default function InventoryScreen({ route }) {
   const initialTabName = route?.params?.initialTab;
-  const initialTabIdx = initialTabName === "suppliers" ? 1 : initialTabName === "goods" ? 2 : 0;
+  const initialTabIdx = initialTabName === "goods" ? 1 : 0;
   const [tab, setTab] = useState(initialTabIdx);
   const [milkTypes, setMilkTypes] = useState([]);
   const [packSizes, setPackSizes] = useState([]);
@@ -892,8 +696,7 @@ export default function InventoryScreen({ route }) {
       </ScrollView>
 
       {tab === 0 && <SetupTab milkTypes={milkTypes} packSizes={packSizes} prices={prices} stock={stock} onRefresh={load} />}
-      {tab === 1 && <SuppliersTab />}
-      {tab === 2 && <GoodsTab milkTypes={milkTypes} packSizes={packSizes} stock={stock} onRefresh={load} />}
+      {tab === 1 && <GoodsTab milkTypes={milkTypes} packSizes={packSizes} stock={stock} onRefresh={load} />}
     </View>
   );
 }
