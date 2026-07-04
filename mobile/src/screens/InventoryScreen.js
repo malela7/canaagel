@@ -163,25 +163,32 @@ function AddBillModal({ supplier, onSave, onClose }) {
 // ── Setup Tab ──────────────────────────────────────────────
 const emptySetupRow = () => ({
   _key: Math.random().toString(36).slice(2),
-  milk_type_id: null,    // existing milk type id (if selected)
-  milk_name: "",         // typed name (creates new milk type if no id)
+  milk_type_id: null,
+  milk_name: "",
   pack_size_id: null,
   pack_label: "",
   litres: "",
   cost_price: "",
   sell_price: "",
-  bulk_price: "",
+  bulk_cost: "",
+  bulk_sell: "",
   stock_qty: "",
-  // populated from existing data when row is loaded
   _saved: false,
   _stock_id: null,
-  _price_id: null,
 });
+
+const profitMarkup = (cost, sell) => {
+  const c = parseFloat(cost), sv = parseFloat(sell);
+  if (!c || c === 0 || !sv) return "—";
+  return `${((sv - c) / c * 100).toFixed(1)}%`;
+};
 
 function SetupTab({ milkTypes, packSizes, prices, stock, onRefresh }) {
   const [bulkEnabled, setBulkEnabled] = useState(false);
-  const [rows, setRows] = useState(() => {
-    // Pre-populate rows from existing data
+  const [saving, setSaving] = useState(false);
+  const [picker, setPicker] = useState(null);
+
+  const buildRows = () => {
     const seen = new Set();
     const existing = [];
     for (const p of prices) {
@@ -205,77 +212,69 @@ function SetupTab({ milkTypes, packSizes, prices, stock, onRefresh }) {
       });
     }
     return existing.length > 0 ? existing : [emptySetupRow()];
-  });
-  const [saving, setSaving] = useState(false);
-  const [picker, setPicker] = useState(null);
+  };
+
+  const [rows, setRows] = useState(buildRows);
 
   const updateRow = (key, field, val) =>
     setRows(prev => prev.map(r => r._key === key ? { ...r, [field]: val } : r));
 
-  const deleteRow = (key) => setRows(prev => prev.filter(r => r._key !== key));
+  const resetRow = (key) =>
+    setRows(prev => prev.map(r => r._key === key ? emptySetupRow() : r));
+
+  const deleteRow = (key) => {
+    if (rows.length === 1) { resetRow(key); return; }
+    setRows(prev => prev.filter(r => r._key !== key));
+  };
 
   const saveAllRows = async () => {
+    const filled = rows.filter(r => r.milk_name.trim() || r.milk_type_id);
+    if (filled.length === 0) { Alert.alert("Nothing to save", "Enter at least one milk name."); return; }
     setSaving(true);
     const errors = [];
-    for (const row of rows) {
+    for (const row of filled) {
       try {
-        // 1. Ensure milk type exists
         let mtId = row.milk_type_id;
         if (!mtId && row.milk_name.trim()) {
-          const existing = milkTypes.find(m => m.name.toLowerCase() === row.milk_name.trim().toLowerCase());
-          if (existing) {
-            mtId = existing.id;
-          } else {
-            const res = await api.post("/inventory/milk-types/", { name: row.milk_name.trim() });
-            mtId = res.data.id;
-          }
+          const ex = milkTypes.find(m => m.name.toLowerCase() === row.milk_name.trim().toLowerCase());
+          mtId = ex ? ex.id : (await api.post("/inventory/milk-types/", { name: row.milk_name.trim() })).data.id;
         }
-        // 2. Ensure pack size exists
         let psId = row.pack_size_id;
         if (!psId && row.pack_label.trim()) {
-          const existing = packSizes.find(p => p.label.toLowerCase() === row.pack_label.trim().toLowerCase());
-          if (existing) {
-            psId = existing.id;
-          } else {
-            const res = await api.post("/inventory/pack-sizes/", {
-              label: row.pack_label.trim(),
-              litres: parseFloat(row.litres) || 0,
-            });
-            psId = res.data.id;
-          }
+          const ex = packSizes.find(p => p.label.toLowerCase() === row.pack_label.trim().toLowerCase());
+          psId = ex ? ex.id : (await api.post("/inventory/pack-sizes/", { label: row.pack_label.trim(), litres: parseFloat(row.litres) || 0 })).data.id;
         }
-        if (!mtId || !psId) {
-          errors.push(`Row "${row.milk_name || "?"}" missing milk type or pack size.`);
-          continue;
-        }
-        // 3. Set price (cost + sell)
-        if (row.sell_price.trim()) {
+        if (!mtId) { errors.push(`"${row.milk_name || "?"}" — missing milk name.`); continue; }
+        if (!psId && row.sell_price.trim()) { errors.push(`"${row.milk_name}" — missing pack size.`); continue; }
+        if (psId && row.sell_price.trim()) {
           await api.post("/inventory/prices/set/", {
-            milk_type: mtId,
-            pack_size: psId,
+            milk_type: mtId, pack_size: psId,
             amount: parseFloat(row.sell_price) || 0,
             cost_price: parseFloat(row.cost_price) || 0,
           });
         }
-        // 4. Set stock qty
-        const qty = parseFloat(row.stock_qty) || 0;
-        if (row._stock_id) {
-          await api.patch(`/inventory/stock/${row._stock_id}/`, { quantity: qty });
-        } else {
-          await api.post("/inventory/stock/", { milk_type: mtId, pack_size: psId, quantity: qty }).catch(() => {});
+        if (psId) {
+          const qty = parseFloat(row.stock_qty) || 0;
+          if (row._stock_id) {
+            await api.patch(`/inventory/stock/${row._stock_id}/`, { quantity: qty });
+          } else {
+            await api.post("/inventory/stock/", { milk_type: mtId, pack_size: psId, quantity: qty }).catch(() => {});
+          }
         }
       } catch (e) {
-        errors.push(`Row "${row.milk_name}": ${e?.response?.data?.detail || "save failed"}`);
+        errors.push(`"${row.milk_name}": ${e?.response?.data?.detail || "save failed"}`);
       }
     }
     setSaving(false);
     if (errors.length) Alert.alert("Some rows had errors", errors.join("\n"));
-    else Alert.alert("Saved", "All rows saved.");
+    else { Alert.alert("Saved", "All rows saved successfully."); }
     onRefresh();
   };
 
-  const mtOptions = milkTypes.map(m => ({ id: m.id, label: m.name }));
-  const psOptions = packSizes.map(p => ({ id: p.id, label: `${p.label} (${p.litres}L)` }));
+  const openPicker = (rowKey, field) => {
+    if (field === "milk_type_id") setPicker({ rowKey, field, options: milkTypes.map(m => ({ id: m.id, label: m.name })), title: "Select Milk Type", selected: rows.find(r => r._key === rowKey)?.milk_type_id });
+    else setPicker({ rowKey, field, options: packSizes.map(p => ({ id: p.id, label: `${p.label} (${p.litres}L)` })), title: "Select Pack Size", selected: rows.find(r => r._key === rowKey)?.pack_size_id });
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -289,7 +288,7 @@ function SetupTab({ milkTypes, packSizes, prices, stock, onRefresh }) {
               const mt = milkTypes.find(m => String(m.id) === String(val));
               updateRow(picker.rowKey, "milk_type_id", val);
               if (mt) updateRow(picker.rowKey, "milk_name", mt.name);
-            } else if (picker.field === "pack_size_id") {
+            } else {
               const ps = packSizes.find(p => String(p.id) === String(val));
               updateRow(picker.rowKey, "pack_size_id", val);
               if (ps) { updateRow(picker.rowKey, "pack_label", ps.label); updateRow(picker.rowKey, "litres", String(ps.litres)); }
@@ -299,7 +298,7 @@ function SetupTab({ milkTypes, packSizes, prices, stock, onRefresh }) {
         />
       )}
 
-      {/* Top bar */}
+      {/* Top bar — matches screenshot */}
       <View style={st.topBar}>
         <TouchableOpacity style={st.addRowBtn} onPress={() => setRows(p => [...p, emptySetupRow()])}>
           <Text style={st.addRowTxt}>+ Add Row</Text>
@@ -309,94 +308,121 @@ function SetupTab({ milkTypes, packSizes, prices, stock, onRefresh }) {
           <TouchableOpacity style={[st.toggle, bulkEnabled && st.toggleOn]} onPress={() => setBulkEnabled(v => !v)}>
             <View style={[st.toggleThumb, bulkEnabled && st.toggleThumbOn]} />
           </TouchableOpacity>
+          <Text style={[st.bulkLabel, { color: bulkEnabled ? colors.primary : "#9ca3af" }]}>{bulkEnabled ? "YES" : "NO"}</Text>
         </View>
       </View>
 
-      {/* Scrollable table */}
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator>
+      <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View>
-            {/* Header */}
+            {/* Table header */}
             <View style={st.thead}>
-              <Text style={[st.th, st.cAction]}>Action</Text>
-              <Text style={[st.th, st.cName]}>Milk Name</Text>
-              <Text style={[st.th, st.cPack]}>Pack Size</Text>
-              <Text style={[st.th, st.cLitres]}>Per Liters</Text>
-              <Text style={[st.th, st.cPrice]}>{"Cost Price\nKsh"}</Text>
-              <Text style={[st.th, st.cPrice]}>{"Sell Price\nKsh"}</Text>
-              {bulkEnabled && <Text style={[st.th, st.cPrice]}>{"Bulk Price\nKsh"}</Text>}
-              <Text style={[st.th, st.cQty]}>{"Current\nQty"}</Text>
+              <View style={[st.thWrap, st.cAction]}><Text style={st.th}>Action</Text></View>
+              <View style={[st.thWrap, st.cName]}><Text style={st.th}>Product Name</Text><Text style={st.thSub}>(Milk Name)</Text></View>
+              <View style={[st.thWrap, st.cPack]}><Text style={st.th}>Pack Size</Text></View>
+              <View style={[st.thWrap, st.cLitres]}><Text style={st.th}>Per Liters</Text></View>
+              <View style={[st.thWrap, st.cPrice]}><Text style={st.th}>Cost Price</Text><Text style={st.thSub}>(Incl Tax) Ksh</Text></View>
+              <View style={[st.thWrap, st.cPrice]}><Text style={st.th}>Sale Price</Text><Text style={st.thSub}>(Incl Tax) Ksh</Text></View>
+              <View style={[st.thWrap, st.cMarkup]}><Text style={st.th}>Profit Markup</Text><Text style={st.thSub}>(%)</Text></View>
+              {bulkEnabled && <View style={[st.thWrap, st.cPrice]}><Text style={st.th}>Bulk Cost</Text><Text style={st.thSub}>Ksh</Text></View>}
+              {bulkEnabled && <View style={[st.thWrap, st.cPrice]}><Text style={st.th}>Bulk Price</Text><Text style={st.thSub}>Ksh</Text></View>}
+              <View style={[st.thWrap, st.cQty]}><Text style={st.th}>Current</Text><Text style={st.thSub}>Quantity</Text></View>
             </View>
 
-            {/* Rows */}
-            {rows.map((row, idx) => (
-              <View key={row._key} style={[st.trow, idx % 2 === 1 && st.trowAlt]}>
-                {/* Action */}
-                <View style={[st.td, st.cAction]}>
-                  <TouchableOpacity onPress={() => deleteRow(row._key)} disabled={rows.length === 1}>
-                    <Ionicons name="trash-outline" size={18} color={rows.length === 1 ? "#d1d5db" : "#ef4444"} />
-                  </TouchableOpacity>
-                </View>
-                {/* Milk Name */}
-                <TouchableOpacity style={[st.td, st.cName]}
-                  onPress={() => setPicker({ rowKey: row._key, field: "milk_type_id", options: mtOptions, title: "Select Milk Type", selected: row.milk_type_id })}>
-                  <TextInput
-                    style={[st.cellInput, { width: "100%" }, !row.milk_name && st.cellInputRequired]}
-                    placeholder="Enter milk name"
-                    value={row.milk_name}
-                    onChangeText={(v) => { updateRow(row._key, "milk_name", v); updateRow(row._key, "milk_type_id", null); }}
-                  />
-                  {milkTypes.length > 0 && (
-                    <Text style={st.pickHint}>▾ or pick existing</Text>
-                  )}
-                </TouchableOpacity>
-                {/* Pack Size */}
-                <TouchableOpacity style={[st.td, st.cPack]}
-                  onPress={() => setPicker({ rowKey: row._key, field: "pack_size_id", options: psOptions, title: "Select Pack Size", selected: row.pack_size_id })}>
-                  <TextInput
-                    style={[st.cellInput, { width: "100%" }]}
-                    placeholder="e.g. 1L"
-                    value={row.pack_label}
-                    onChangeText={(v) => { updateRow(row._key, "pack_label", v); updateRow(row._key, "pack_size_id", null); }}
-                  />
-                  {packSizes.length > 0 && (
-                    <Text style={st.pickHint}>▾ or pick existing</Text>
-                  )}
-                </TouchableOpacity>
-                {/* Litres */}
-                <View style={[st.td, st.cLitres]}>
-                  <TextInput style={st.cellInput} keyboardType="decimal-pad" placeholder="0"
-                    value={row.litres} onChangeText={(v) => updateRow(row._key, "litres", v)} />
-                </View>
-                {/* Cost Price */}
-                <View style={[st.td, st.cPrice]}>
-                  <TextInput style={st.cellInput} keyboardType="decimal-pad" placeholder="0"
-                    value={row.cost_price} onChangeText={(v) => updateRow(row._key, "cost_price", v)} />
-                </View>
-                {/* Sell Price */}
-                <View style={[st.td, st.cPrice]}>
-                  <TextInput style={[st.cellInput, st.cellInputRequired]} keyboardType="decimal-pad" placeholder="0"
-                    value={row.sell_price} onChangeText={(v) => updateRow(row._key, "sell_price", v)} />
-                </View>
-                {/* Bulk Price */}
-                {bulkEnabled && (
+            {/* Data rows */}
+            {rows.map((row, idx) => {
+              const markup = profitMarkup(row.cost_price, row.sell_price);
+              const nameEmpty = !row.milk_name.trim();
+              const sellEmpty = !row.sell_price.trim();
+              return (
+                <View key={row._key} style={[st.trow, idx % 2 === 1 && st.trowAlt]}>
+                  {/* Action: reset + delete */}
+                  <View style={[st.td, st.cAction, { gap: 8 }]}>
+                    <TouchableOpacity onPress={() => resetRow(row._key)}>
+                      <Ionicons name="refresh-outline" size={17} color="#6b7280" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deleteRow(row._key)}>
+                      <Ionicons name="trash-outline" size={17} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                  {/* Milk Name */}
+                  <View style={[st.td, st.cName]}>
+                    <TouchableOpacity onPress={() => openPicker(row._key, "milk_type_id")} activeOpacity={0.7}>
+                      <TextInput
+                        style={[st.cellInput, nameEmpty && st.cellRequired]}
+                        placeholder="Enter prod..."
+                        placeholderTextColor={nameEmpty ? "#fca5a5" : "#9ca3af"}
+                        value={row.milk_name}
+                        onChangeText={(v) => { updateRow(row._key, "milk_name", v); updateRow(row._key, "milk_type_id", null); }}
+                      />
+                    </TouchableOpacity>
+                    {milkTypes.length > 0 && !row.milk_name && (
+                      <TouchableOpacity onPress={() => openPicker(row._key, "milk_type_id")}>
+                        <Text style={st.pickHint}>▾ pick existing</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {/* Pack Size */}
+                  <View style={[st.td, st.cPack]}>
+                    <TouchableOpacity onPress={() => openPicker(row._key, "pack_size_id")} activeOpacity={0.7}>
+                      <TextInput
+                        style={st.cellInput}
+                        placeholder="e.g. 1L"
+                        value={row.pack_label}
+                        onChangeText={(v) => { updateRow(row._key, "pack_label", v); updateRow(row._key, "pack_size_id", null); }}
+                      />
+                    </TouchableOpacity>
+                    {packSizes.length > 0 && !row.pack_label && (
+                      <TouchableOpacity onPress={() => openPicker(row._key, "pack_size_id")}>
+                        <Text style={st.pickHint}>▾ pick existing</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {/* Litres */}
+                  <View style={[st.td, st.cLitres]}>
+                    <TextInput style={st.cellInput} keyboardType="decimal-pad" placeholder="0"
+                      value={row.litres} onChangeText={(v) => updateRow(row._key, "litres", v)} />
+                  </View>
+                  {/* Cost Price */}
                   <View style={[st.td, st.cPrice]}>
                     <TextInput style={st.cellInput} keyboardType="decimal-pad" placeholder="0"
-                      value={row.bulk_price} onChangeText={(v) => updateRow(row._key, "bulk_price", v)} />
+                      value={row.cost_price} onChangeText={(v) => updateRow(row._key, "cost_price", v)} />
                   </View>
-                )}
-                {/* Stock Qty */}
-                <View style={[st.td, st.cQty]}>
-                  <TextInput style={[st.cellInput, { color: "#9ca3af" }]} keyboardType="decimal-pad" placeholder="0"
-                    value={row.stock_qty} onChangeText={(v) => updateRow(row._key, "stock_qty", v)} />
+                  {/* Sell Price */}
+                  <View style={[st.td, st.cPrice]}>
+                    <TextInput style={[st.cellInput, sellEmpty && st.cellRequired]} keyboardType="decimal-pad"
+                      placeholder="0" placeholderTextColor={sellEmpty ? "#fca5a5" : "#9ca3af"}
+                      value={row.sell_price} onChangeText={(v) => updateRow(row._key, "sell_price", v)} />
+                  </View>
+                  {/* Profit Markup — auto calculated */}
+                  <View style={[st.td, st.cMarkup]}>
+                    <Text style={[st.markupTxt, parseFloat(row.sell_price) > parseFloat(row.cost_price) && { color: "#16a34a" }]}>{markup}</Text>
+                  </View>
+                  {/* Bulk Cost & Price */}
+                  {bulkEnabled && (
+                    <View style={[st.td, st.cPrice]}>
+                      <TextInput style={st.cellInput} keyboardType="decimal-pad" placeholder="0"
+                        value={row.bulk_cost} onChangeText={(v) => updateRow(row._key, "bulk_cost", v)} />
+                    </View>
+                  )}
+                  {bulkEnabled && (
+                    <View style={[st.td, st.cPrice]}>
+                      <TextInput style={st.cellInput} keyboardType="decimal-pad" placeholder="0"
+                        value={row.bulk_sell} onChangeText={(v) => updateRow(row._key, "bulk_sell", v)} />
+                    </View>
+                  )}
+                  {/* Current Qty */}
+                  <View style={[st.td, st.cQty]}>
+                    <TextInput style={[st.cellInput, st.cellQty]} keyboardType="decimal-pad" placeholder="0"
+                      value={row.stock_qty} onChangeText={(v) => updateRow(row._key, "stock_qty", v)} />
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         </ScrollView>
 
-        {/* Save button */}
-        <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+        <View style={{ paddingHorizontal: 16, marginTop: 14 }}>
           <TouchableOpacity style={s.primaryBtn} onPress={saveAllRows} disabled={saving}>
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnTxt}>Save All</Text>}
           </TouchableOpacity>
@@ -942,33 +968,38 @@ const s = StyleSheet.create({
 // ── Setup table styles ─────────────────────────────────────
 const st = StyleSheet.create({
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
-  addRowBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
+  addRowBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 9, paddingHorizontal: 18 },
   addRowTxt: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  bulkToggleWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
-  bulkLabel: { fontSize: 12, color: "#374151", fontWeight: "500" },
+  bulkToggleWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
+  bulkLabel: { fontSize: 11, color: "#374151", fontWeight: "500" },
   toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: "#d1d5db", justifyContent: "center", paddingHorizontal: 2 },
   toggleOn: { backgroundColor: colors.primary },
   toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff", alignSelf: "flex-start" },
   toggleThumbOn: { alignSelf: "flex-end" },
 
   // Column widths
-  cAction: { width: 48, alignItems: "center", justifyContent: "center" },
-  cName: { width: 150 },
-  cPack: { width: 110 },
+  cAction: { width: 60, alignItems: "center", justifyContent: "center", flexDirection: "row" },
+  cName: { width: 145 },
+  cPack: { width: 100 },
   cLitres: { width: 80 },
-  cPrice: { width: 90 },
+  cPrice: { width: 95 },
+  cMarkup: { width: 85, alignItems: "center", justifyContent: "center" },
   cQty: { width: 80 },
 
-  thead: { flexDirection: "row", backgroundColor: "#374151", paddingVertical: 10 },
-  th: { fontSize: 11, fontWeight: "700", color: "#fff", paddingHorizontal: 6, textAlignVertical: "center" },
+  thead: { flexDirection: "row", backgroundColor: "#4b5563" },
+  thWrap: { paddingVertical: 10, paddingHorizontal: 6, justifyContent: "center" },
+  th: { fontSize: 11, fontWeight: "700", color: "#fff" },
+  thSub: { fontSize: 10, color: "#d1d5db", marginTop: 1 },
 
-  trow: { flexDirection: "row", backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", minHeight: 58, alignItems: "flex-start", paddingVertical: 6 },
+  trow: { flexDirection: "row", backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", minHeight: 60, alignItems: "center" },
   trowAlt: { backgroundColor: "#f9fafb" },
   td: { paddingHorizontal: 6, justifyContent: "center" },
 
-  cellInput: { borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 6, padding: 7, backgroundColor: "#fff", fontSize: 13, color: "#111827" },
-  cellInputRequired: { borderColor: "#fca5a5" },
-  pickHint: { fontSize: 10, color: "#9ca3af", marginTop: 2 },
+  cellInput: { borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 6, paddingVertical: 7, paddingHorizontal: 8, backgroundColor: "#fff", fontSize: 13, color: "#111827" },
+  cellRequired: { borderColor: "#fca5a5", borderWidth: 1.5 },
+  cellQty: { color: "#9ca3af" },
+  markupTxt: { fontSize: 13, fontWeight: "700", color: "#6b7280", textAlign: "center" },
+  pickHint: { fontSize: 10, color: "#9ca3af", marginTop: 3 },
 });
 
 // ── Goods Received table styles ────────────────────────────
