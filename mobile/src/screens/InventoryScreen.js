@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
   FlatList,
   Modal,
+  PanResponder,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,7 +14,6 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/client";
 import { colors } from "../theme";
@@ -138,101 +138,109 @@ const ms = StyleSheet.create({
   saveText: { color: "#fff", fontWeight: "700", fontSize: 15 },
 });
 
-// ── Swipeable Stock Row ────────────────────────────────────
+// ── Swipeable Stock Row (PanResponder, no extra packages) ──
+const SWIPE_THRESHOLD = 60;
+const ACTION_WIDTH = 80;
+
 function StockRow({ item, index, onEdit, onDelete }) {
-  const swipeRef = useRef(null);
-  const close = () => swipeRef.current?.close();
+  const translateX = useRef(new Animated.Value(0)).current;
+  const [revealed, setRevealed] = useState(null); // "left" | "right" | null
 
   const status = statusInfo(item.quantity, item.low_stock_threshold);
   const sku = makeSKU(item.milk_type_name, item.pack_size_label);
   const color = avatarColor(index);
   const initial = (item.milk_type_name || "?").slice(0, 2).toUpperCase();
 
-  const renderRight = (progress, drag) => {
-    const scale = drag.interpolate({ inputRange: [-80, 0], outputRange: [1, 0.8], extrapolate: "clamp" });
-    return (
-      <Animated.View style={[sw.actionRight, { transform: [{ scale }] }]}>
-        <TouchableOpacity
-          style={sw.editBtn}
-          onPress={() => { close(); onEdit(item); }}
-        >
-          <Ionicons name="create-outline" size={20} color="#fff" />
-          <Text style={sw.actionLabel}>Edit</Text>
-        </TouchableOpacity>
-      </Animated.View>
-    );
+  const close = () => {
+    Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+    setRevealed(null);
   };
 
-  const renderLeft = (progress, drag) => {
-    const scale = drag.interpolate({ inputRange: [0, 80], outputRange: [0.8, 1], extrapolate: "clamp" });
-    return (
-      <Animated.View style={[sw.actionLeft, { transform: [{ scale }] }]}>
-        <TouchableOpacity
-          style={sw.deleteBtn}
-          onPress={() => {
-            close();
-            Alert.alert(
-              "Remove stock entry?",
-              `Remove "${item.milk_type_name} ${item.pack_size_label}" from inventory?`,
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Remove", style: "destructive", onPress: () => onDelete(item) },
-              ]
-            );
-          }}
-        >
-          <Ionicons name="trash-outline" size={20} color="#fff" />
-          <Text style={sw.actionLabel}>Delete</Text>
-        </TouchableOpacity>
-      </Animated.View>
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderGrant: () => { translateX.setOffset(translateX._value); translateX.setValue(0); },
+      onPanResponderMove: (_, g) => {
+        // clamp: left swipe up to -ACTION_WIDTH, right swipe up to ACTION_WIDTH
+        const clamped = Math.max(-ACTION_WIDTH - 10, Math.min(ACTION_WIDTH + 10, g.dx));
+        translateX.setValue(clamped);
+      },
+      onPanResponderRelease: (_, g) => {
+        translateX.flattenOffset();
+        const current = translateX._value;
+        if (current < -SWIPE_THRESHOLD) {
+          // reveal delete (left swipe = row moves left = delete on right)
+          Animated.spring(translateX, { toValue: -ACTION_WIDTH, useNativeDriver: true, bounciness: 4 }).start();
+          setRevealed("left");
+        } else if (current > SWIPE_THRESHOLD) {
+          // reveal edit (right swipe = row moves right = edit on left)
+          Animated.spring(translateX, { toValue: ACTION_WIDTH, useNativeDriver: true, bounciness: 4 }).start();
+          setRevealed("right");
+        } else {
+          close();
+        }
+      },
+    })
+  ).current;
+
+  const handleEdit = () => { close(); onEdit(item); };
+  const handleDelete = () => {
+    close();
+    Alert.alert(
+      "Remove stock entry?",
+      `Remove "${item.milk_type_name} · ${item.pack_size_label}" from inventory?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: () => onDelete(item) },
+      ]
     );
   };
 
   return (
-    <Swipeable
-      ref={swipeRef}
-      friction={2}
-      leftThreshold={40}
-      rightThreshold={40}
-      renderRightActions={renderRight}
-      renderLeftActions={renderLeft}
-    >
-      <View style={sw.row}>
-        {/* Avatar */}
+    <View style={sw.wrapper}>
+      {/* Behind-row actions */}
+      {/* Edit action (shown when row swiped right) */}
+      <View style={[sw.actionPane, sw.actionPaneLeft]}>
+        <TouchableOpacity style={sw.editBtn} onPress={handleEdit}>
+          <Ionicons name="create-outline" size={20} color="#fff" />
+          <Text style={sw.actionLabel}>Edit</Text>
+        </TouchableOpacity>
+      </View>
+      {/* Delete action (shown when row swiped left) */}
+      <View style={[sw.actionPane, sw.actionPaneRight]}>
+        <TouchableOpacity style={sw.deleteBtn} onPress={handleDelete}>
+          <Ionicons name="trash-outline" size={20} color="#fff" />
+          <Text style={sw.actionLabel}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Main row */}
+      <Animated.View style={[sw.row, { transform: [{ translateX }] }]} {...panResponder.panHandlers}>
         <View style={[sw.avatar, { backgroundColor: color }]}>
           <Text style={sw.avatarText}>{initial}</Text>
         </View>
-
-        {/* Name + SKU */}
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={sw.name} numberOfLines={1}>
-            {item.milk_type_name}
-          </Text>
+          <Text style={sw.name} numberOfLines={1}>{item.milk_type_name}</Text>
           <Text style={sw.packSize}>{item.pack_size_label}</Text>
           <Text style={sw.sku}>{sku}</Text>
         </View>
-
-        {/* Quantity badge */}
         <View style={[sw.qtyBadge, { backgroundColor: status.badge }]}>
           <Text style={[sw.qtyText, { color: status.badgeText }]}>
-            {parseFloat(item.quantity) % 1 === 0
-              ? parseInt(item.quantity)
-              : parseFloat(item.quantity).toFixed(1)}
+            {parseFloat(item.quantity) % 1 === 0 ? parseInt(item.quantity) : parseFloat(item.quantity).toFixed(1)}
           </Text>
           <Text style={[sw.qtyUnit, { color: status.badgeText }]}>units</Text>
         </View>
-
-        {/* Status dot */}
         <View style={sw.dotWrap}>
           <View style={[sw.dot, { backgroundColor: status.dot }]} />
         </View>
-      </View>
-    </Swipeable>
+      </Animated.View>
+    </View>
   );
 }
 
 const sw = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  wrapper: { position: "relative", overflow: "hidden", borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  row: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 12 },
   avatar: { width: 44, height: 44, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   avatarText: { color: "#fff", fontWeight: "800", fontSize: 14 },
   name: { fontSize: 14, fontWeight: "700", color: "#111827" },
@@ -243,10 +251,12 @@ const sw = StyleSheet.create({
   qtyUnit: { fontSize: 9, fontWeight: "600", marginTop: -2 },
   dotWrap: { width: 16, alignItems: "center" },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  actionRight: { width: 80, justifyContent: "center" },
-  actionLeft: { width: 80, justifyContent: "center" },
-  editBtn: { flex: 1, backgroundColor: "#3b82f6", alignItems: "center", justifyContent: "center", gap: 2 },
-  deleteBtn: { flex: 1, backgroundColor: "#ef4444", alignItems: "center", justifyContent: "center", gap: 2 },
+  // Action panes sit behind the row absolutely
+  actionPane: { position: "absolute", top: 0, bottom: 0, width: ACTION_WIDTH, justifyContent: "center", alignItems: "center" },
+  actionPaneLeft: { left: 0 },   // visible when row slides right (edit)
+  actionPaneRight: { right: 0 }, // visible when row slides left (delete)
+  editBtn: { flex: 1, width: "100%", backgroundColor: "#3b82f6", alignItems: "center", justifyContent: "center", gap: 2 },
+  deleteBtn: { flex: 1, width: "100%", backgroundColor: "#ef4444", alignItems: "center", justifyContent: "center", gap: 2 },
   actionLabel: { color: "#fff", fontSize: 11, fontWeight: "700" },
 });
 
