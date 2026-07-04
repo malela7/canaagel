@@ -10,6 +10,8 @@ from .views import (
     SetPriceView,
     ShopProductViewSet,
     StockViewSet,
+    SupplierBillViewSet,
+    SupplierViewSet,
 )
 
 app_name = "inventory"
@@ -39,4 +41,11 @@ urlpatterns = [
     path("products/", ShopProductViewSet.as_view({"get": "list", "post": "create"}), name="product-list"),
     path("products/<int:pk>/", ShopProductViewSet.as_view(
         {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}), name="product-detail"),
+
+    path("suppliers/", SupplierViewSet.as_view({"get": "list", "post": "create"}), name="supplier-list"),
+    path("suppliers/<int:pk>/", SupplierViewSet.as_view(
+        {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}), name="supplier-detail"),
+    path("suppliers/<int:supplier_pk>/bills/", SupplierBillViewSet.as_view({"get": "list", "post": "create"}), name="supplier-bill-list"),
+    path("suppliers/<int:supplier_pk>/bills/<int:pk>/", SupplierBillViewSet.as_view(
+        {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}), name="supplier-bill-detail"),
 ]
