@@ -5,12 +5,14 @@ from rest_framework.views import APIView
 from apps.common.mixins import ShopScopedQuerysetMixin
 from apps.common.permissions import HasShopPermission
 
-from .models import Customer, CustomerPayment, Order, StandingOrderItem
+from .models import Customer, CustomerPayment, Order, ProductSale, StandingOrderItem
 from .serializers import (
     CreateOrderSerializer,
+    CreateProductSaleSerializer,
     CustomerPaymentSerializer,
     CustomerSerializer,
     OrderSerializer,
+    ProductSaleSerializer,
     StandingOrderItemSerializer,
 )
 from .services import cancel_order
@@ -62,6 +64,26 @@ class OrderViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
         order = self.get_object()
         order = cancel_order(order=order)
         return Response(OrderSerializer(order).data)
+
+
+class ProductSaleViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
+    queryset = ProductSale.objects.all().select_related("customer", "created_by").prefetch_related("items__product")
+    permission_classes = [UsePOS]
+    http_method_names = ["get", "post"]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return CreateProductSaleSerializer
+        return ProductSaleSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = CreateProductSaleSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        try:
+            sale = serializer.save()
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(ProductSaleSerializer(sale).data, status=status.HTTP_201_CREATED)
 
 
 class CustomerPaymentViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):

@@ -1,6 +1,8 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
-from .models import Customer, CustomerPayment, Order, OrderItem, StandingOrderItem
+from .models import Customer, CustomerPayment, Order, OrderItem, ProductSale, ProductSaleItem, StandingOrderItem
 from .services import create_order, record_customer_payment
 
 
@@ -81,6 +83,111 @@ class CreateOrderSerializer(serializers.Serializer):
             is_walk_in=validated_data["is_walk_in"],
             payment_method=validated_data["payment_method"],
         )
+
+
+class ProductSaleItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+
+    class Meta:
+        model = ProductSaleItem
+        fields = ["id", "product", "product_name", "quantity", "unit_price", "line_total"]
+        read_only_fields = ["unit_price", "line_total"]
+
+
+class ProductSaleSerializer(serializers.ModelSerializer):
+    items = ProductSaleItemSerializer(many=True, read_only=True)
+    customer_name = serializers.SerializerMethodField()
+
+    def get_customer_name(self, obj):
+        return obj.customer.name if obj.customer else "Walk-in"
+
+    class Meta:
+        model = ProductSale
+        fields = [
+            "id", "customer", "customer_name", "is_walk_in", "total_amount",
+            "payment_status", "payment_method", "note",
+            "created_by", "created_at", "items",
+        ]
+        read_only_fields = ["total_amount", "payment_status", "created_by", "created_at", "items"]
+
+
+class ProductSaleItemInputSerializer(serializers.Serializer):
+    quantity = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0.01"))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.inventory.models import ShopProduct
+        self.fields["product"] = serializers.PrimaryKeyRelatedField(queryset=ShopProduct.objects.all())
+
+
+class CreateProductSaleSerializer(serializers.Serializer):
+    customer = serializers.PrimaryKeyRelatedField(
+        queryset=Customer.objects.all(), required=False, allow_null=True
+    )
+    is_walk_in = serializers.BooleanField(default=False)
+    items = ProductSaleItemInputSerializer(many=True)
+    payment_method = serializers.ChoiceField(choices=ProductSale.PaymentMethod.choices, default=ProductSale.PaymentMethod.CASH)
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def create(self, validated_data):
+        from apps.inventory.models import ShopProduct
+        request = self.context["request"]
+        shop = request.user.shop
+        customer = validated_data.get("customer")
+        items_data = validated_data["items"]
+        payment_method = validated_data["payment_method"]
+        is_walk_in = validated_data.get("is_walk_in", False)
+        note = validated_data.get("note", "")
+
+        # Determine payment status: UNPAID for non-cash credit customers
+        is_credit = (
+            customer is not None and
+            payment_method == ProductSale.PaymentMethod.CASH and
+            customer.payment_schedule != "CASH"
+        )
+        # If customer has credit schedule, sale goes unpaid (bill); otherwise paid
+        payment_status = (
+            ProductSale.PaymentStatus.UNPAID
+            if (customer and customer.payment_schedule != "CASH")
+            else ProductSale.PaymentStatus.PAID
+        )
+
+        total = Decimal("0")
+        item_rows = []
+        for it in items_data:
+            product = it["product"]
+            qty = it["quantity"]
+            unit_price = product.sell_price
+            line_total = qty * unit_price
+            total += line_total
+            item_rows.append((product, qty, unit_price, line_total))
+
+        sale = ProductSale.objects.create(
+            shop=shop,
+            customer=customer,
+            is_walk_in=is_walk_in or customer is None,
+            total_amount=total,
+            payment_status=payment_status,
+            payment_method=payment_method,
+            note=note,
+            created_by=request.user,
+        )
+
+        for product, qty, unit_price, line_total in item_rows:
+            ProductSaleItem.objects.create(
+                sale=sale, product=product,
+                quantity=qty, unit_price=unit_price, line_total=line_total,
+            )
+            # Deduct stock
+            product.stock_quantity = max(Decimal("0"), product.stock_quantity - qty)
+            product.save(update_fields=["stock_quantity"])
+
+        # If unpaid, add to customer's debt balance
+        if payment_status == ProductSale.PaymentStatus.UNPAID and customer:
+            customer.debt_balance += total
+            customer.save(update_fields=["debt_balance"])
+
+        return sale
 
 
 class CustomerPaymentSerializer(serializers.ModelSerializer):

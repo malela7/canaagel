@@ -122,6 +122,33 @@ class Stock(models.Model):
         return self.quantity <= self.low_stock_threshold
 
 
+class ShopProduct(models.Model):
+    """General products a shop sells beyond milk (e.g. bread, sugar)."""
+
+    shop = models.ForeignKey(
+        "shops.Shop", on_delete=models.CASCADE, related_name="shop_products"
+    )
+    name = models.CharField(max_length=255)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sell_price = models.DecimalField(max_digits=10, decimal_places=2)
+    stock_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = ("shop", "name")
+
+    def __str__(self):
+        return f"{self.name} ({self.shop.name})"
+
+    @property
+    def profit_margin(self):
+        if self.cost_price and self.cost_price > 0:
+            return round((self.sell_price - self.cost_price) / self.cost_price * 100, 1)
+        return None
+
+
 class PaperBagStock(models.Model):
     """
     Paper bags are packaging, not a product. One running stock count per

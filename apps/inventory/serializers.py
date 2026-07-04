@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import CustomerPrice, MilkType, PackSize, PaperBagStock, Price, Stock
+from .models import CustomerPrice, MilkType, PackSize, PaperBagStock, Price, ShopProduct, Stock
 
 
 class MilkTypeSerializer(serializers.ModelSerializer):
@@ -68,6 +68,18 @@ class StockSerializer(serializers.ModelSerializer):
             "id", "milk_type", "milk_type_name", "pack_size", "pack_size_label", "quantity",
             "low_stock_threshold", "is_low",
         ]
+
+
+class ShopProductSerializer(serializers.ModelSerializer):
+    profit_margin = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = ShopProduct
+        fields = [
+            "id", "name", "cost_price", "sell_price", "stock_quantity",
+            "is_active", "profit_margin", "created_at",
+        ]
+        read_only_fields = ["created_at"]
 
 
 class PaperBagStockSerializer(serializers.ModelSerializer):

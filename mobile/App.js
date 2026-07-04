@@ -10,6 +10,7 @@ import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
 import LoginScreen from "./src/screens/LoginScreen";
 import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
 import POSScreen from "./src/screens/POSScreen";
+import MilkProductsScreen from "./src/screens/MilkProductsScreen";
 import CustomersScreen from "./src/screens/CustomersScreen";
 import DeliveryScreen from "./src/screens/DeliveryScreen";
 import ReportsScreen from "./src/screens/ReportsScreen";
@@ -129,6 +130,7 @@ function MilkStack() {
       <Tab.Screen name="POS" component={POSScreen} options={{ title: "Point of Sale" }} />
       <Tab.Screen name="Customers" component={CustomersScreen} />
       <Tab.Screen name="Inventory" component={InventoryScreen} />
+      <Tab.Screen name="Products" component={MilkProductsScreen} />
       {isOwner && <Tab.Screen name="Employees" component={EmployeesScreen} />}
       {isOwner && <Tab.Screen name="Subscription" component={SubscriptionScreen} />}
       <Tab.Screen name="Reports" component={ReportsScreen} />

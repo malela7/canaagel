@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from apps.common.mixins import ShopScopedQuerysetMixin
 from apps.common.permissions import HasShopPermission
 
-from .models import CustomerPrice, MilkType, PackSize, PaperBagStock, Price, Stock
+from .models import CustomerPrice, MilkType, PackSize, PaperBagStock, Price, ShopProduct, Stock
 from .serializers import (
     CustomerPriceSerializer,
     MilkTypeSerializer,
@@ -14,6 +14,7 @@ from .serializers import (
     PriceSerializer,
     SetCustomerPriceSerializer,
     SetPriceSerializer,
+    ShopProductSerializer,
     StockSerializer,
 )
 from .services import set_current_customer_price, set_current_price
@@ -86,6 +87,13 @@ class StockViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
     serializer_class = StockSerializer
     permission_classes = [ManageInventory]
     http_method_names = ["get", "post", "patch"]
+
+
+class ShopProductViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):
+    queryset = ShopProduct.objects.all().order_by("name")
+    serializer_class = ShopProductSerializer
+    permission_classes = [ManageInventory]
+    http_method_names = ["get", "post", "patch", "delete"]
 
 
 class PaperBagStockViewSet(ShopScopedQuerysetMixin, viewsets.ModelViewSet):

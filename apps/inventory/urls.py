@@ -8,6 +8,7 @@ from .views import (
     PriceListView,
     SetCustomerPriceView,
     SetPriceView,
+    ShopProductViewSet,
     StockViewSet,
 )
 
@@ -34,4 +35,8 @@ urlpatterns = [
     path("paper-bag-stock/", PaperBagStockViewSet.as_view({"get": "list", "post": "create"}), name="paper-bag-stock-list"),
     path("paper-bag-stock/<int:pk>/", PaperBagStockViewSet.as_view(
         {"get": "retrieve", "patch": "partial_update"}), name="paper-bag-stock-detail"),
+
+    path("products/", ShopProductViewSet.as_view({"get": "list", "post": "create"}), name="product-list"),
+    path("products/<int:pk>/", ShopProductViewSet.as_view(
+        {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}), name="product-detail"),
 ]
