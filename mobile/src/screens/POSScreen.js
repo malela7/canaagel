@@ -68,17 +68,14 @@ function Receipt({ sale, onClose }) {
 
 // ── POS Screen ────────────────────────────────────────────
 export default function POSScreen() {
-  const [mode, setMode] = useState("milk"); // "milk" | "products"
   const [prices, setPrices] = useState([]);
   const [stock, setStock] = useState([]);
-  const [shopProducts, setShopProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
   // Cart
-  const [milkCart, setMilkCart] = useState({});      // milk mode cart
-  const [productCart, setProductCart] = useState({}); // products mode cart
+  const [milkCart, setMilkCart] = useState({});
   const [customerId, setCustomerId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [paperBags, setPaperBags] = useState("0");
@@ -92,12 +89,10 @@ export default function POSScreen() {
     Promise.all([
       api.get("/inventory/prices/"),
       api.get("/inventory/stock/"),
-      api.get("/inventory/products/?is_active=true"),
       api.get("/sales/customers/?page_size=200"),
-    ]).then(([p, s, pr, c]) => {
+    ]).then(([p, s, c]) => {
       setPrices(p.data.results || p.data);
       setStock(s.data.results || s.data);
-      setShopProducts((pr.data.results || pr.data).filter((x) => x.is_active));
       setCustomers(c.data.results || c.data);
     }).catch(() => {
       setLoadError("Failed to load. Tap to retry.");
@@ -112,8 +107,8 @@ export default function POSScreen() {
     return map;
   }, [stock]);
 
-  const cart = mode === "milk" ? milkCart : productCart;
-  const setCart = mode === "milk" ? setMilkCart : setProductCart;
+  const cart = milkCart;
+  const setCart = setMilkCart;
 
   const cartItems = Object.values(cart);
   const cartCount = cartItems.reduce((sum, it) => sum + it.quantity, 0);
@@ -144,7 +139,7 @@ export default function POSScreen() {
   };
 
   const resetSale = () => {
-    setCart({});
+    setMilkCart({});
     setPaperBags("0");
     setStep("products");
     setCustomerId("");
@@ -244,24 +239,6 @@ export default function POSScreen() {
       <ScrollView style={st.container} contentContainerStyle={{ paddingBottom: 40 }}>
         <Text style={st.title}>Point of Sale</Text>
 
-        {/* Mode toggle */}
-        <View style={st.modeRow}>
-          <TouchableOpacity
-            style={[st.modeBtn, mode === "milk" && st.modeBtnActive]}
-            onPress={() => { setMode("milk"); setStep("products"); }}
-          >
-            <Ionicons name="water-outline" size={14} color={mode === "milk" ? "#fff" : colors.textSecondary} />
-            <Text style={[st.modeBtnText, mode === "milk" && st.modeBtnTextActive]}>Milk</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[st.modeBtn, mode === "products" && st.modeBtnActive]}
-            onPress={() => { setMode("products"); setStep("products"); }}
-          >
-            <Ionicons name="cube-outline" size={14} color={mode === "products" ? "#fff" : colors.textSecondary} />
-            <Text style={[st.modeBtnText, mode === "products" && st.modeBtnTextActive]}>Products</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Customer picker */}
         <Text style={st.label}>Customer</Text>
         <View style={st.pickerWrap}>
@@ -273,8 +250,8 @@ export default function POSScreen() {
           </Picker>
         </View>
 
-        {/* ── Milk mode ── */}
-        {mode === "milk" && step === "products" && (
+        {/* ── Milk products ── */}
+        {step === "products" && (
           <>
             <View style={st.rowBetween}>
               <Text style={st.label}>Tap a product to add</Text>
@@ -319,80 +296,7 @@ export default function POSScreen() {
           </>
         )}
 
-        {/* ── Products mode ── */}
-        {mode === "products" && step === "products" && (
-          <>
-            <View style={st.rowBetween}>
-              <Text style={st.label}>Tap a product to add</Text>
-              <Text style={st.meta}>{cartCount} in cart</Text>
-            </View>
-            {shopProducts.length === 0 ? (
-              <Text style={st.meta}>No products yet. Add them in the Products tab.</Text>
-            ) : (
-              <View style={st.productGrid}>
-                {shopProducts.map((p) => {
-                  const inCart = productCart[`prod-${p.id}`]?.quantity || 0;
-                  const outOfStock = parseFloat(p.stock_quantity) <= 0;
-                  const cardW = (SCREEN_W - 32 - 8) / 2;
-                  return (
-                    <TouchableOpacity
-                      key={p.id}
-                      onPress={() => !outOfStock && addToCart({
-                        key: `prod-${p.id}`,
-                        productId: p.id,
-                        name: p.name,
-                        amount: parseFloat(p.sell_price),
-                        quantity: 0,
-                      })}
-                      style={[st.productCard, { width: cardW }, outOfStock && st.productCardOut]}
-                      activeOpacity={0.85}
-                    >
-                      <View style={[st.productImageBox, outOfStock && { backgroundColor: "#e5e7eb" }]}>
-                        <Ionicons name="camera-outline" size={26} color={outOfStock ? "#9ca3af" : "#d1d5db"} />
-                      </View>
-                      {inCart > 0 && (
-                        <View style={st.productCartBadge}>
-                          <Text style={st.productCartBadgeText}>{inCart}</Text>
-                        </View>
-                      )}
-                      <Text style={st.productName} numberOfLines={2}>{p.name}</Text>
-                      <View style={st.productFooter}>
-                        <View style={[st.productPriceBadge, outOfStock && st.productPriceBadgeOut]}>
-                          <Text style={[st.productPriceText, outOfStock && { color: "#9ca3af" }]}>
-                            {outOfStock ? "Out of stock" : `KES ${parseFloat(p.sell_price).toFixed(0)}`}
-                          </Text>
-                        </View>
-                        {!outOfStock && (
-                          <TouchableOpacity
-                            style={st.productAddBtn}
-                            onPress={() => addToCart({
-                              key: `prod-${p.id}`,
-                              productId: p.id,
-                              name: p.name,
-                              amount: parseFloat(p.sell_price),
-                              quantity: 0,
-                            })}
-                          >
-                            <Ionicons name="add" size={14} color="#fff" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-            <TouchableOpacity
-              disabled={cartItems.length === 0}
-              onPress={() => setStep("checkout")}
-              style={[st.button, cartItems.length === 0 && st.buttonDisabled]}
-            >
-              <Text style={st.buttonText}>Review cart ({cartCount})</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* ── Checkout (shared) ── */}
+        {/* ── Checkout ── */}
         {step === "checkout" && (
           <View>
             <TouchableOpacity onPress={() => setStep("products")} style={st.backRow}>
@@ -439,18 +343,14 @@ export default function POSScreen() {
               <Text style={st.totalValue}>KES {total.toFixed(2)}</Text>
             </View>
 
-            {/* Paper bags (milk mode only) */}
-            {mode === "milk" && (
-              <>
-                <Text style={st.label}>Paper bags used</Text>
-                <TextInput
-                  style={st.smallInput}
-                  keyboardType="numeric"
-                  value={paperBags}
-                  onChangeText={setPaperBags}
-                />
-              </>
-            )}
+            {/* Paper bags */}
+            <Text style={st.label}>Paper bags used</Text>
+            <TextInput
+              style={st.smallInput}
+              keyboardType="numeric"
+              value={paperBags}
+              onChangeText={setPaperBags}
+            />
 
             {/* Payment method */}
             <Text style={st.label}>Payment method</Text>
@@ -471,7 +371,7 @@ export default function POSScreen() {
             {/* Confirm */}
             <TouchableOpacity
               style={[st.button, submitting && st.buttonDisabled]}
-              onPress={mode === "milk" ? handleSubmitMilk : handleSubmitProducts}
+              onPress={handleSubmitMilk}
               disabled={submitting}
             >
               {submitting
