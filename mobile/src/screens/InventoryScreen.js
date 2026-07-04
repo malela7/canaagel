@@ -513,135 +513,281 @@ function SuppliersTab() {
 }
 
 // ── Goods Received Tab ────────────────────────────────────
+const emptyRow = () => ({
+  _key: Math.random().toString(36).slice(2),
+  milk_type: null,
+  pack_size: null,
+  product_name: "",
+  cost_price: "",
+  sell_price: "",
+  quantity: "",
+  expiry_date: "",
+});
+
+// Picker modal for selecting milk type or pack size in a row
+function PickerModal({ title, options, selected, onSelect, onClose }) {
+  return (
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={pm.overlay}>
+          <TouchableWithoutFeedback>
+            <View style={pm.sheet}>
+              <View style={pm.handle} />
+              <Text style={pm.title}>{title}</Text>
+              {options.map((opt) => (
+                <TouchableOpacity key={opt.id} style={[pm.row, String(selected) === String(opt.id) && pm.rowActive]}
+                  onPress={() => { onSelect(opt.id); onClose(); }}>
+                  <Text style={[pm.rowTxt, String(selected) === String(opt.id) && pm.rowTxtActive]}>{opt.label || opt.name}</Text>
+                  {String(selected) === String(opt.id) && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+}
+
+const pm = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, maxHeight: "60%" },
+  handle: { width: 36, height: 4, backgroundColor: "#e5e7eb", borderRadius: 2, alignSelf: "center", marginBottom: 12 },
+  title: { fontSize: 15, fontWeight: "700", color: "#111827", marginBottom: 12 },
+  row: { paddingVertical: 12, paddingHorizontal: 8, borderRadius: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  rowActive: { backgroundColor: "#f0fdf4" },
+  rowTxt: { fontSize: 15, color: "#374151" },
+  rowTxtActive: { color: colors.primary, fontWeight: "700" },
+});
+
 function GoodsTab({ milkTypes, packSizes, stock, onRefresh }) {
-  const emptyReceipt = { supplier_name: "", date: new Date().toISOString().slice(0, 10) };
-  const [receipt, setReceipt] = useState(emptyReceipt);
-  const [items, setItems] = useState([{ ...emptyReceiptItem }]);
+  const [supplierName, setSupplierName] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [rows, setRows] = useState([emptyRow()]);
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState([]);
+  const [picker, setPicker] = useState(null); // { rowKey, field, options, title }
 
-  const updateItem = (idx, key, val) =>
-    setItems((prev) => prev.map((it, i) => i === idx ? { ...it, [key]: val } : it));
+  const updateRow = (key, field, val) =>
+    setRows((prev) => prev.map((r) => r._key === key ? { ...r, [field]: val } : r));
+
+  const deleteRow = (key) => setRows((prev) => prev.filter((r) => r._key !== key));
+
+  const totalAmount = (r) => {
+    const cost = parseFloat(r.cost_price) || 0;
+    const qty = parseFloat(r.quantity) || 0;
+    return cost * qty;
+  };
+
+  const grandTotal = rows.reduce((sum, r) => sum + totalAmount(r), 0);
+
+  const addSupplier = () => {
+    // Navigate to Suppliers tab — just give info for now
+  };
 
   const submit = async () => {
-    for (const it of items) {
-      if (!it.milk_type) { Alert.alert("Validation", "Select milk type for each line."); return; }
-      if (!it.pack_size) { Alert.alert("Validation", "Select pack size for each line."); return; }
-      if (!it.quantity || parseFloat(it.quantity) <= 0) { Alert.alert("Validation", "Enter valid quantity."); return; }
-    }
+    const valid = rows.filter(r => r.milk_type && r.pack_size && parseFloat(r.quantity) > 0);
+    if (valid.length === 0) { Alert.alert("Validation", "Add at least one row with milk type, pack size and quantity."); return; }
     setSaving(true);
     try {
       const errors = [], received = [];
-      for (const it of items) {
+      for (const it of valid) {
         const stockEntry = stock.find(
           (s) => String(s.milk_type) === String(it.milk_type) && String(s.pack_size) === String(it.pack_size)
         );
         const mt = milkTypes.find((m) => String(m.id) === String(it.milk_type));
         const ps = packSizes.find((p) => String(p.id) === String(it.pack_size));
+        const qty = parseFloat(it.quantity);
         if (!stockEntry) {
-          errors.push(`No stock entry for ${mt?.name}/${ps?.label}`);
-          continue;
+          // create stock entry
+          await api.post("/inventory/stock/", {
+            milk_type: it.milk_type, pack_size: it.pack_size, quantity: qty,
+          }).catch(() => errors.push(`Could not create stock for ${mt?.name}/${ps?.label}`));
+        } else {
+          await api.patch(`/inventory/stock/${stockEntry.id}/`, { quantity: parseFloat(stockEntry.quantity) + qty });
         }
-        await api.patch(`/inventory/stock/${stockEntry.id}/`, { quantity: parseFloat(stockEntry.quantity) + parseFloat(it.quantity) });
-        received.push({ name: `${mt?.name}/${ps?.label}`, qty: parseFloat(it.quantity) });
+        // update cost price if provided
+        if (it.cost_price || it.sell_price) {
+          await api.post("/inventory/prices/set/", {
+            milk_type: it.milk_type,
+            pack_size: it.pack_size,
+            amount: parseFloat(it.sell_price) || 0,
+            cost_price: parseFloat(it.cost_price) || 0,
+          }).catch(() => {});
+        }
+        received.push({ name: `${mt?.name}/${ps?.label}`, qty });
       }
       if (errors.length) Alert.alert("Some items skipped", errors.join("\n"));
       if (received.length) {
-        setHistory((prev) => [{ id: Date.now(), supplier: receipt.supplier_name || "Unknown", date: receipt.date, items: received }, ...prev]);
-        setReceipt(emptyReceipt);
-        setItems([{ ...emptyReceiptItem }]);
+        setHistory((prev) => [{ id: Date.now(), supplier: supplierName || "Unknown", date, items: received, total: grandTotal }, ...prev]);
+        setSupplierName(""); setDate(new Date().toISOString().slice(0, 10));
+        setRows([emptyRow()]);
         onRefresh();
         Alert.alert("Saved", `${received.length} item(s) updated.`);
       }
-    } catch { Alert.alert("Error", "Could not save goods received."); }
+    } catch { Alert.alert("Error", "Could not save."); }
     finally { setSaving(false); }
   };
 
+  const mtOptions = milkTypes.map(m => ({ id: m.id, label: m.name }));
+  const psOptions = packSizes.map(p => ({ id: p.id, label: `${p.label} (${p.litres}L)` }));
+
   return (
-    <ScrollView contentContainerStyle={s.padded}>
-      <View style={s.card}>
-        <Text style={s.sectionLabel}>RECORD GOODS RECEIVED</Text>
-        <Text style={s.lbl}>Supplier</Text>
-        <TextInput style={s.input} placeholder="Supplier name (optional)" value={receipt.supplier_name}
-          onChangeText={(v) => setReceipt({ ...receipt, supplier_name: v })} />
-        <Text style={s.lbl}>Date received</Text>
-        <TextInput style={s.input} placeholder="YYYY-MM-DD" value={receipt.date}
-          onChangeText={(v) => setReceipt({ ...receipt, date: v })} />
-        <Text style={[s.lbl, { marginTop: 12 }]}>Items</Text>
-        {items.map((item, idx) => (
-          <View key={idx} style={s.lineCard}>
-            <View style={s.lineHead}>
-              <Text style={s.lineNum}>Line {idx + 1}</Text>
-              {items.length > 1 && (
-                <TouchableOpacity onPress={() => setItems((p) => p.filter((_, i) => i !== idx))}>
-                  <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                </TouchableOpacity>
-              )}
+    <View style={{ flex: 1 }}>
+      {picker && (
+        <PickerModal
+          title={picker.title}
+          options={picker.options}
+          selected={picker.selected}
+          onSelect={(val) => updateRow(picker.rowKey, picker.field, val)}
+          onClose={() => setPicker(null)}
+        />
+      )}
+
+      <ScrollView contentContainerStyle={s.padded}>
+        {/* Header bar with Add Product + Add Supplier */}
+        <View style={gr.topBar}>
+          <TouchableOpacity style={gr.addProductBtn} onPress={() => setRows(p => [...p, emptyRow()])}>
+            <Ionicons name="add" size={14} color="#fff" />
+            <Text style={gr.addProductTxt}>Add Product</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={gr.addSupplierBtn}>
+            <Ionicons name="add" size={14} color="#fff" />
+            <Text style={gr.addSupplierTxt}>Add Supplier</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Meta row */}
+        <View style={gr.metaRow}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={s.lbl}>Supplier</Text>
+            <TextInput style={s.input} placeholder="Supplier name" value={supplierName} onChangeText={setSupplierName} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.lbl}>Date</Text>
+            <TextInput style={s.input} placeholder="YYYY-MM-DD" value={date} onChangeText={setDate} />
+          </View>
+        </View>
+
+        {/* Table */}
+        <ScrollView horizontal showsHorizontalScrollIndicator style={gr.tableWrap}>
+          <View>
+            {/* Table header */}
+            <View style={gr.thead}>
+              <Text style={[gr.th, gr.colAction]}>Action</Text>
+              <Text style={[gr.th, gr.colSN]}>SN</Text>
+              <Text style={[gr.th, gr.colProduct]}>Product Name</Text>
+              <Text style={[gr.th, gr.colPrice]}>{"Cost Price\nKsh"}</Text>
+              <Text style={[gr.th, gr.colPrice]}>{"Sell Price\nKsh"}</Text>
+              <Text style={[gr.th, gr.colQty]}>Quantity</Text>
+              <Text style={[gr.th, gr.colExpiry]}>Expiry Date</Text>
+              <Text style={[gr.th, gr.colTotal]}>Total Ksh</Text>
             </View>
-            <Text style={s.lbl}>Milk type</Text>
-            <View style={s.chipRow}>
-              {milkTypes.map((mt) => (
-                <TouchableOpacity key={mt.id} onPress={() => updateItem(idx, "milk_type", mt.id)}
-                  style={[s.chip, String(item.milk_type) === String(mt.id) && s.chipActive]}>
-                  <Text style={[s.chipTxt, String(item.milk_type) === String(mt.id) && s.chipTxtActive]}>{mt.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={s.lbl}>Pack size</Text>
-            <View style={s.chipRow}>
-              {packSizes.map((ps) => (
-                <TouchableOpacity key={ps.id} onPress={() => updateItem(idx, "pack_size", ps.id)}
-                  style={[s.chip, String(item.pack_size) === String(ps.id) && s.chipActive]}>
-                  <Text style={[s.chipTxt, String(item.pack_size) === String(ps.id) && s.chipTxtActive]}>{ps.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={s.twoCol}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.lbl}>Qty *</Text>
-                <TextInput style={s.input} keyboardType="decimal-pad" placeholder="0"
-                  value={item.quantity} onChangeText={(v) => updateItem(idx, "quantity", v)} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.lbl}>Unit cost (KES)</Text>
-                <TextInput style={s.input} keyboardType="decimal-pad" placeholder="Optional"
-                  value={item.unit_cost} onChangeText={(v) => updateItem(idx, "unit_cost", v)} />
-              </View>
+
+            {/* Rows */}
+            {rows.map((row, idx) => {
+              const mt = milkTypes.find(m => String(m.id) === String(row.milk_type));
+              const ps = packSizes.find(p => String(p.id) === String(row.pack_size));
+              const rowLabel = mt && ps ? `${mt.name} / ${ps.label}` : mt ? mt.name : "";
+              const total = totalAmount(row);
+              return (
+                <View key={row._key} style={[gr.trow, idx % 2 === 1 && gr.trowAlt]}>
+                  {/* Action */}
+                  <View style={[gr.td, gr.colAction]}>
+                    <TouchableOpacity onPress={() => deleteRow(row._key)} disabled={rows.length === 1}>
+                      <Ionicons name="trash-outline" size={18} color={rows.length === 1 ? "#d1d5db" : "#ef4444"} />
+                    </TouchableOpacity>
+                  </View>
+                  {/* SN */}
+                  <View style={[gr.td, gr.colSN]}>
+                    <Text style={gr.snTxt}>{idx + 1}</Text>
+                  </View>
+                  {/* Product Name — tap to pick milk type + pack size */}
+                  <TouchableOpacity style={[gr.td, gr.colProduct]}
+                    onPress={() => setPicker({ rowKey: row._key, field: "milk_type", options: mtOptions, title: "Select Milk Type", selected: row.milk_type })}>
+                    {rowLabel
+                      ? <Text style={gr.productTxt}>{rowLabel}</Text>
+                      : <Text style={gr.productPlaceholder}>Tap to select</Text>}
+                    {mt && !ps && (
+                      <TouchableOpacity onPress={() => setPicker({ rowKey: row._key, field: "pack_size", options: psOptions, title: "Select Pack Size", selected: row.pack_size })}>
+                        <Text style={[gr.productPlaceholder, { color: "#f59e0b" }]}>Select pack ▸</Text>
+                      </TouchableOpacity>
+                    )}
+                    {mt && ps && (
+                      <TouchableOpacity onPress={() => setPicker({ rowKey: row._key, field: "pack_size", options: psOptions, title: "Select Pack Size", selected: row.pack_size })}>
+                        <Text style={gr.packTxt}>{ps.label}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </TouchableOpacity>
+                  {/* Cost Price */}
+                  <View style={[gr.td, gr.colPrice]}>
+                    <TextInput style={gr.cellInput} keyboardType="decimal-pad" placeholder="0"
+                      value={row.cost_price} onChangeText={(v) => updateRow(row._key, "cost_price", v)} />
+                  </View>
+                  {/* Sell Price */}
+                  <View style={[gr.td, gr.colPrice]}>
+                    <TextInput style={gr.cellInput} keyboardType="decimal-pad" placeholder="0"
+                      value={row.sell_price} onChangeText={(v) => updateRow(row._key, "sell_price", v)} />
+                  </View>
+                  {/* Quantity */}
+                  <View style={[gr.td, gr.colQty]}>
+                    <TextInput style={gr.cellInput} keyboardType="decimal-pad" placeholder="0"
+                      value={row.quantity} onChangeText={(v) => updateRow(row._key, "quantity", v)} />
+                  </View>
+                  {/* Expiry */}
+                  <View style={[gr.td, gr.colExpiry]}>
+                    <TextInput style={gr.cellInput} placeholder="YYYY-MM-DD"
+                      value={row.expiry_date} onChangeText={(v) => updateRow(row._key, "expiry_date", v)} />
+                  </View>
+                  {/* Total */}
+                  <View style={[gr.td, gr.colTotal]}>
+                    <Text style={gr.totalTxt}>{total > 0 ? total.toLocaleString() : "0"}</Text>
+                  </View>
+                </View>
+              );
+            })}
+
+            {/* Grand total row */}
+            <View style={gr.totalRow}>
+              <Text style={[gr.th, { flex: 1, textAlign: "right", paddingRight: 8 }]}>Grand Total:</Text>
+              <Text style={[gr.th, gr.colTotal, { color: colors.primary }]}>{grandTotal.toLocaleString()}</Text>
             </View>
           </View>
-        ))}
-        <TouchableOpacity style={s.addLineBtn} onPress={() => setItems((p) => [...p, { ...emptyReceiptItem }])}>
-          <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
-          <Text style={s.addLineTxt}>Add item</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[s.primaryBtn, { marginTop: 12 }]} onPress={submit} disabled={saving}>
+        </ScrollView>
+
+        {/* Confirm button */}
+        <TouchableOpacity style={[s.primaryBtn, { marginTop: 16 }]} onPress={submit} disabled={saving}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnTxt}>Confirm Goods Received</Text>}
         </TouchableOpacity>
-      </View>
 
-      {history.length > 0 && (
-        <>
-          <Text style={s.sectionLabel}>RECEIVED THIS SESSION</Text>
-          {history.map((r) => (
-            <View key={r.id} style={s.histCard}>
-              <View style={s.histHead}>
-                <View>
-                  <Text style={s.histSup}>{r.supplier}</Text>
-                  <Text style={s.histDate}>{r.date}</Text>
+        {/* History */}
+        {history.length > 0 && (
+          <>
+            <Text style={[s.sectionLabel, { marginTop: 20 }]}>RECEIVED THIS SESSION</Text>
+            {history.map((r) => (
+              <View key={r.id} style={s.histCard}>
+                <View style={s.histHead}>
+                  <View>
+                    <Text style={s.histSup}>{r.supplier}</Text>
+                    <Text style={s.histDate}>{r.date}</Text>
+                  </View>
+                  <View>
+                    <View style={s.greenBadge}><Text style={s.greenBadgeTxt}>{r.items.length} item{r.items.length !== 1 ? "s" : ""}</Text></View>
+                    {r.total > 0 && <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary, textAlign: "right", marginTop: 3 }}>KES {r.total.toLocaleString()}</Text>}
+                  </View>
                 </View>
-                <View style={s.greenBadge}><Text style={s.greenBadgeTxt}>{r.items.length} item{r.items.length !== 1 ? "s" : ""}</Text></View>
+                {r.items.map((it, i) => (
+                  <View key={i} style={s.histLine}>
+                    <Text style={s.histLineTxt}>• {it.name}</Text>
+                    <Text style={s.histLineQty}>+{it.qty}</Text>
+                  </View>
+                ))}
               </View>
-              {r.items.map((it, i) => (
-                <View key={i} style={s.histLine}>
-                  <Text style={s.histLineTxt}>• {it.name}</Text>
-                  <Text style={s.histLineQty}>+{it.qty}</Text>
-                </View>
-              ))}
-            </View>
-          ))}
-        </>
-      )}
-    </ScrollView>
+            ))}
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -789,4 +935,42 @@ const s = StyleSheet.create({
 
   greenBadge: { backgroundColor: "#dcfce7", borderRadius: 10, paddingVertical: 3, paddingHorizontal: 10 },
   greenBadgeTxt: { fontSize: 11, fontWeight: "700", color: "#166534" },
+});
+
+// ── Goods Received table styles ────────────────────────────
+const gr = StyleSheet.create({
+  topBar: { flexDirection: "row", gap: 10, marginBottom: 12 },
+  addProductBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#7c3aed", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
+  addProductTxt: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  addSupplierBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#d97706", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
+  addSupplierTxt: { color: "#fff", fontWeight: "700", fontSize: 13 },
+
+  metaRow: { flexDirection: "row", marginBottom: 12 },
+
+  tableWrap: { borderRadius: 8, marginBottom: 4 },
+
+  // Column widths
+  colAction: { width: 48, alignItems: "center", justifyContent: "center" },
+  colSN: { width: 40, alignItems: "center" },
+  colProduct: { width: 140 },
+  colPrice: { width: 90 },
+  colQty: { width: 80 },
+  colExpiry: { width: 110 },
+  colTotal: { width: 90 },
+
+  thead: { flexDirection: "row", backgroundColor: "#374151", paddingVertical: 10 },
+  th: { fontSize: 11, fontWeight: "700", color: "#fff", paddingHorizontal: 6, textAlignVertical: "center" },
+
+  trow: { flexDirection: "row", backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", minHeight: 52, alignItems: "center" },
+  trowAlt: { backgroundColor: "#f9fafb" },
+  td: { paddingHorizontal: 6, justifyContent: "center" },
+
+  snTxt: { fontSize: 13, fontWeight: "700", color: "#374151", textAlign: "center" },
+  productTxt: { fontSize: 13, fontWeight: "700", color: "#111827" },
+  productPlaceholder: { fontSize: 12, color: "#9ca3af" },
+  packTxt: { fontSize: 11, color: "#6b7280", marginTop: 2 },
+  cellInput: { borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 6, padding: 6, backgroundColor: "#fff", fontSize: 13, color: "#111827", width: "100%" },
+  totalTxt: { fontSize: 13, fontWeight: "700", color: "#111827" },
+
+  totalRow: { flexDirection: "row", backgroundColor: "#f3f4f6", paddingVertical: 10, borderTopWidth: 2, borderTopColor: "#e5e7eb" },
 });
