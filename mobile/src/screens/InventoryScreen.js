@@ -438,9 +438,11 @@ function SuppliersTab() {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [note, setNote] = useState("");
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [billModal, setBillModal] = useState(null);
+  const [search, setSearch] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -460,8 +462,8 @@ function SuppliersTab() {
     if (!name.trim()) { Alert.alert("Missing", "Enter supplier name."); return; }
     setAdding(true);
     try {
-      await api.post("/inventory/suppliers/", { name: name.trim(), phone: phone.trim() });
-      setName(""); setPhone(""); load();
+      await api.post("/inventory/suppliers/", { name: name.trim(), phone: phone.trim(), note: note.trim() });
+      setName(""); setPhone(""); setNote(""); load();
     } catch (e) {
       const msg = e?.response?.data?.name?.[0] || "Could not add supplier.";
       Alert.alert("Error", msg);
@@ -484,18 +486,33 @@ function SuppliersTab() {
 
       {/* Add supplier form */}
       <View style={s.card}>
-        <Text style={s.sectionLabel}>ADD SUPPLIER</Text>
-        <TextInput style={s.input} placeholder="Supplier name" value={name} onChangeText={setName} />
-        <TextInput style={[s.input, { marginTop: 8 }]} placeholder="Phone (optional)" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+        <Text style={s.sectionLabel}>REGISTER SUPPLIER</Text>
+        <TextInput style={s.input} placeholder="Supplier name *" value={name} onChangeText={setName} />
+        <TextInput style={[s.input, { marginTop: 8 }]} placeholder="Phone number (optional)" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+        <TextInput
+          style={[s.input, { marginTop: 8, height: 64, textAlignVertical: "top" }]}
+          placeholder="Goods / products they supply (e.g. Fresh milk, Yoghurt)"
+          multiline
+          value={note}
+          onChangeText={setNote}
+        />
         <TouchableOpacity style={[s.primaryBtn, { marginTop: 10 }]} onPress={addSupplier} disabled={adding}>
-          {adding ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnTxt}>Add Supplier</Text>}
+          {adding ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnTxt}>+ Register Supplier</Text>}
         </TouchableOpacity>
       </View>
 
+      {/* Search */}
+      <TextInput
+        style={[s.input, { marginBottom: 8 }]}
+        placeholder="Search suppliers..."
+        value={search}
+        onChangeText={setSearch}
+      />
+
       {/* Supplier list */}
-      <Text style={s.sectionLabel}>SUPPLIERS</Text>
+      <Text style={s.sectionLabel}>SUPPLIERS ({suppliers.filter(sup => !search || sup.name.toLowerCase().includes(search.toLowerCase()) || (sup.phone || "").includes(search)).length})</Text>
       {suppliers.length === 0 && <Text style={s.empty}>No suppliers yet.</Text>}
-      {suppliers.map((sup, i) => {
+      {suppliers.filter(sup => !search || sup.name.toLowerCase().includes(search.toLowerCase()) || (sup.phone || "").includes(search) || (sup.note || "").toLowerCase().includes(search.toLowerCase())).map((sup, i) => {
         const owed = sup.total_owed ?? 0;
         const isOpen = expanded === sup.id;
         return (
@@ -507,6 +524,7 @@ function SuppliersTab() {
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={s.supName}>{sup.name}</Text>
                 {sup.phone ? <Text style={s.supPhone}>{sup.phone}</Text> : null}
+                {sup.note ? <Text style={s.supGoods} numberOfLines={1}>📦 {sup.note}</Text> : null}
               </View>
               {Number(owed) > 0 && (
                 <View style={s.owedBadge}>
@@ -820,8 +838,10 @@ function GoodsTab({ milkTypes, packSizes, stock, onRefresh }) {
 }
 
 // ── Main Screen ────────────────────────────────────────────
-export default function InventoryScreen() {
-  const [tab, setTab] = useState(0);
+export default function InventoryScreen({ route }) {
+  const initialTabName = route?.params?.initialTab;
+  const initialTabIdx = initialTabName === "suppliers" ? 1 : initialTabName === "goods" ? 2 : 0;
+  const [tab, setTab] = useState(initialTabIdx);
   const [milkTypes, setMilkTypes] = useState([]);
   const [packSizes, setPackSizes] = useState([]);
   const [prices, setPrices] = useState([]);
@@ -936,6 +956,7 @@ const s = StyleSheet.create({
   supAvatarTxt: { color: "#fff", fontWeight: "800", fontSize: 13 },
   supName: { fontSize: 14, fontWeight: "700", color: "#111827" },
   supPhone: { fontSize: 12, color: "#6b7280" },
+  supGoods: { fontSize: 11, color: "#9ca3af", marginTop: 2 },
   owedBadge: { backgroundColor: "#fee2e2", borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8 },
   owedTxt: { fontSize: 11, fontWeight: "700", color: "#b91c1c" },
 
