@@ -8,7 +8,7 @@ import api from "../api/client";
 import { useTheme } from "../context/ThemeContext";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-const CARD_W = (SCREEN_W - 48) / 2; // 2 columns, 12px side padding + 12px gap
+const CARD_W = (SCREEN_W - 36) / 2; // 2 columns, 12px sides + 12px gap
 
 const PAYMENT_METHODS = [
   { key: "CASH",    label: "Cash",        icon: "cash-outline",           color: "#16a34a" },
@@ -17,17 +17,16 @@ const PAYMENT_METHODS = [
   { key: "CREDIT",  label: "Credit/Debt", icon: "time-outline",           color: "#f59e0b" },
 ];
 
-function emptyItem() { return { milk_type: "", pack_size: "", quantity: "1" }; }
-
 export default function POSScreen() {
   const { accent } = useTheme(); const colors = { primary: accent?.value || "#16a34a" };
   const [milkTypes, setMilkTypes]   = useState([]);
   const [packSizes, setPackSizes]   = useState([]);
   const [prices, setPrices]         = useState([]);
   const [customers, setCustomers]   = useState([]);
+  const [cart, setCart]             = useState([]); // [{ milk_type, pack_size, milk_type_name, pack_size_label, amount, qty }]
+  const [search, setSearch]         = useState("");
   const [customerId, setCustomerId] = useState("");
   const [isWalkIn, setIsWalkIn]     = useState(true);
-  const [items, setItems]           = useState([emptyItem()]);
   const [paperBags, setPaperBags]   = useState("0");
   const [payMethod, setPayMethod]   = useState("CASH");
   const [message, setMessage]       = useState(null);
@@ -42,7 +41,6 @@ export default function POSScreen() {
     api.get("/sales/customers/?page_size=200").then((r) => setCustomers(r.data.results || r.data));
   }, []);
 
-  // Each price entry is one selectable combo
   const combos = prices.map((p) => ({
     key: `${p.milk_type}-${p.pack_size}`,
     milk_type: String(p.milk_type),
@@ -52,32 +50,44 @@ export default function POSScreen() {
     amount: parseFloat(p.amount) || 0,
   }));
 
-  const getUnitPrice = (mtId, psId) => {
-    const p = prices.find((x) => String(x.milk_type) === String(mtId) && String(x.pack_size) === String(psId));
-    return p ? parseFloat(p.amount) : 0;
+  const filteredCombos = combos.filter((c) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return c.milk_type_name.toLowerCase().includes(q) || c.pack_size_label.toLowerCase().includes(q);
+  });
+
+  const addToCart = (combo) => {
+    setCart((prev) => {
+      const existing = prev.find((i) => i.key === combo.key);
+      if (existing) return prev.map((i) => i.key === combo.key ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, { ...combo, qty: 1 }];
+    });
   };
 
-  const updateItem = (idx, patch) =>
-    setItems((prev) => prev.map((it, i) => i === idx ? { ...it, ...patch } : it));
+  const setCartQty = (key, qty) => {
+    if (qty <= 0) {
+      setCart((prev) => prev.filter((i) => i.key !== key));
+    } else {
+      setCart((prev) => prev.map((i) => i.key === key ? { ...i, qty } : i));
+    }
+  };
 
-  const lineTotal = (it) => getUnitPrice(it.milk_type, it.pack_size) * (parseFloat(it.quantity) || 0);
-  const orderTotal = items.reduce((s, it) => s + lineTotal(it), 0);
-
+  const cartQty = (key) => cart.find((i) => i.key === key)?.qty || 0;
+  const orderTotal = cart.reduce((s, i) => s + i.amount * i.qty, 0);
   const selectedCustomer = customers.find((c) => String(c.id) === String(customerId));
 
   const handleSubmit = async () => {
-    const validItems = items.filter((it) => it.milk_type && it.pack_size && parseFloat(it.quantity) > 0);
-    if (!validItems.length) { Alert.alert("Error", "Select at least one product."); return; }
+    if (!cart.length) { Alert.alert("Error", "Add at least one product."); return; }
     setSubmitting(true); setMessage(null);
     try {
       const payload = {
         customer: isWalkIn ? null : (customerId || null),
         is_walk_in: isWalkIn,
         paper_bags_used: Number(paperBags) || 0,
-        items: validItems.map((it) => ({
-          milk_type: Number(it.milk_type),
-          pack_size: Number(it.pack_size),
-          quantity: it.quantity,
+        items: cart.map((i) => ({
+          milk_type: Number(i.milk_type),
+          pack_size: Number(i.pack_size),
+          quantity: String(i.qty),
         })),
       };
       const { data: order } = await api.post("/sales/orders/", payload);
@@ -92,7 +102,7 @@ export default function POSScreen() {
       }
 
       setMessage(`✓ Sale #${order.id} — KES ${parseFloat(order.total_amount).toLocaleString()} · ${payMethod}`);
-      setItems([emptyItem()]);
+      setCart([]);
       setPaperBags("0");
     } catch (err) {
       Alert.alert("Error", err.response?.data?.detail || "Could not record sale.");
@@ -105,7 +115,6 @@ export default function POSScreen() {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={s.title}>Point of Sale</Text>
 
       {message && (
         <View style={s.successBanner}>
@@ -116,17 +125,111 @@ export default function POSScreen() {
         </View>
       )}
 
+      {/* ── Search bar ── */}
+      <View style={s.searchWrap}>
+        <Ionicons name="search-outline" size={18} color="#9ca3af" style={{ marginRight: 6 }} />
+        <TextInput
+          style={s.searchInput}
+          placeholder="Search products by name / pack size..."
+          placeholderTextColor="#9ca3af"
+          value={search}
+          onChangeText={setSearch}
+        />
+        {!!search && (
+          <TouchableOpacity onPress={() => setSearch("")}>
+            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* ── Product card grid ── */}
+      <View style={s.grid}>
+        {filteredCombos.length === 0 && (
+          <Text style={s.emptyTxt}>No products found. Set prices in Inventory first.</Text>
+        )}
+        {filteredCombos.map((combo) => {
+          const inCart = cartQty(combo.key);
+          return (
+            <View key={combo.key} style={s.card}>
+              {/* In-cart badge */}
+              {inCart > 0 && (
+                <View style={[s.cartBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={s.cartBadgeTxt}>{inCart}</Text>
+                </View>
+              )}
+
+              {/* Image placeholder */}
+              <View style={s.cardImgBox}>
+                <Ionicons name="camera-outline" size={36} color="#9ca3af" />
+                <Text style={s.noImgTxt}>NO IMAGE{"\n"}AVAILABLE</Text>
+              </View>
+
+              {/* Product name */}
+              <Text style={s.cardName}>{combo.milk_type_name}</Text>
+              <Text style={s.cardPack}>{combo.pack_size_label}</Text>
+
+              {/* Price row */}
+              <View style={s.priceRow}>
+                <View style={[s.kshBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={s.kshTxt}>Ksh</Text>
+                </View>
+                <Text style={s.priceAmt}>{combo.amount.toLocaleString()}</Text>
+              </View>
+
+              {/* Add to Cart / qty controls */}
+              {inCart === 0 ? (
+                <TouchableOpacity
+                  style={[s.addBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => addToCart(combo)}
+                >
+                  <Ionicons name="cart-outline" size={16} color="#fff" />
+                  <Text style={s.addBtnTxt}>Add to Cart</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={[s.qtyControl, { borderColor: colors.primary }]}>
+                  <TouchableOpacity style={s.qtyMinus} onPress={() => setCartQty(combo.key, inCart - 1)}>
+                    <Text style={[s.qtySymbol, { color: colors.primary }]}>−</Text>
+                  </TouchableOpacity>
+                  <Text style={[s.qtyNum, { color: colors.primary }]}>{inCart}</Text>
+                  <TouchableOpacity style={s.qtyPlus} onPress={() => setCartQty(combo.key, inCart + 1)}>
+                    <Text style={[s.qtySymbol, { color: "#fff" }]}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+
+      {/* ── Cart summary ── */}
+      {cart.length > 0 && (
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Cart ({cart.length} item{cart.length !== 1 ? "s" : ""})</Text>
+          {cart.map((item) => (
+            <View key={item.key} style={s.cartRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cartItemName}>{item.milk_type_name} · {item.pack_size_label}</Text>
+                <Text style={s.cartItemSub}>KES {item.amount} × {item.qty}</Text>
+              </View>
+              <Text style={[s.cartItemTotal, { color: colors.primary }]}>
+                KES {(item.amount * item.qty).toLocaleString()}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* ── Customer ── */}
       <View style={s.section}>
         <Text style={s.sectionTitle}>Customer</Text>
         <View style={s.customerToggle}>
-          <TouchableOpacity style={[s.toggleBtn, isWalkIn && { backgroundColor: colors.primary }]}
+          <TouchableOpacity style={[s.toggleBtn, isWalkIn && { backgroundColor: colors.primary, borderColor: colors.primary }]}
             onPress={() => { setIsWalkIn(true); setCustomerId(""); }}>
             <Text style={[s.toggleTxt, isWalkIn && { color: "#fff" }]}>Walk-in</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[s.toggleBtn, !isWalkIn && { backgroundColor: colors.primary }]}
+          <TouchableOpacity style={[s.toggleBtn, !isWalkIn && { backgroundColor: colors.primary, borderColor: colors.primary }]}
             onPress={() => setIsWalkIn(false)}>
-            <Text style={[s.toggleTxt, !isWalkIn && { color: "#fff" }]}>Customer</Text>
+            <Text style={[s.toggleTxt, !isWalkIn && { color: "#fff" }]}>Registered</Text>
           </TouchableOpacity>
         </View>
         {!isWalkIn && (
@@ -142,107 +245,6 @@ export default function POSScreen() {
             <Text style={s.debtTxt}>⚠ Existing debt: KES {parseFloat(selectedCustomer.debt_balance).toLocaleString()}</Text>
           </View>
         )}
-      </View>
-
-      {/* ── Items ── */}
-      <View style={s.section}>
-        <Text style={s.sectionTitle}>Select Product</Text>
-
-        {items.map((item, idx) => {
-          const selectedCombo = combos.find(
-            (c) => c.milk_type === item.milk_type && c.pack_size === item.pack_size
-          );
-          return (
-            <View key={idx} style={[s.itemBlock, idx > 0 && { marginTop: 16, borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 16 }]}>
-              {items.length > 1 && (
-                <View style={s.itemHeaderRow}>
-                  <Text style={s.itemNum}>Item {idx + 1}</Text>
-                  <TouchableOpacity onPress={() => setItems((p) => p.filter((_, i) => i !== idx))}>
-                    <Ionicons name="trash-outline" size={16} color="#dc2626" />
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {/* 2-column card grid */}
-              <View style={s.cardGrid}>
-                {combos.map((combo) => {
-                  const isSelected = item.milk_type === combo.milk_type && item.pack_size === combo.pack_size;
-                  return (
-                    <TouchableOpacity
-                      key={combo.key}
-                      style={[
-                        s.productCard,
-                        isSelected && { borderColor: colors.primary, borderWidth: 2, backgroundColor: "#f0fdf4" },
-                      ]}
-                      onPress={() => updateItem(idx, { milk_type: combo.milk_type, pack_size: combo.pack_size })}
-                      activeOpacity={0.8}
-                    >
-                      {/* Icon placeholder */}
-                      <View style={[s.cardIconBox, isSelected && { backgroundColor: colors.primary + "22" }]}>
-                        <Ionicons
-                          name="water-outline"
-                          size={32}
-                          color={isSelected ? colors.primary : "#9ca3af"}
-                        />
-                      </View>
-
-                      {/* Name + pack */}
-                      <Text style={s.cardName} numberOfLines={1}>{combo.milk_type_name}</Text>
-                      <Text style={s.cardPack}>{combo.pack_size_label}</Text>
-
-                      {/* Price badge */}
-                      <View style={[s.priceBadge, isSelected && { backgroundColor: colors.primary }]}>
-                        <Text style={[s.priceBadgeTxt, isSelected && { color: "#fff" }]}>
-                          KES {combo.amount.toLocaleString()}
-                        </Text>
-                      </View>
-
-                      {/* Selected checkmark */}
-                      {isSelected && (
-                        <View style={[s.checkMark, { backgroundColor: colors.primary }]}>
-                          <Ionicons name="checkmark" size={12} color="#fff" />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Quantity — only shown after a combo is selected */}
-              {item.milk_type && item.pack_size && (
-                <View style={s.qtySection}>
-                  <Text style={s.qtyLabel}>Quantity</Text>
-                  <View style={s.qtyRow}>
-                    <TouchableOpacity style={s.qtyBtn}
-                      onPress={() => updateItem(idx, { quantity: String(Math.max(1, (parseFloat(item.quantity) || 1) - 1)) })}>
-                      <Text style={s.qtyBtnTxt}>−</Text>
-                    </TouchableOpacity>
-                    <TextInput
-                      style={s.qtyInput}
-                      keyboardType="numeric"
-                      value={item.quantity}
-                      onChangeText={(v) => updateItem(idx, { quantity: v })}
-                    />
-                    <TouchableOpacity style={s.qtyBtn}
-                      onPress={() => updateItem(idx, { quantity: String((parseFloat(item.quantity) || 0) + 1) })}>
-                      <Text style={s.qtyBtnTxt}>+</Text>
-                    </TouchableOpacity>
-                    {lineTotal(item) > 0 && (
-                      <Text style={[s.lineTotalTxt, { color: colors.primary }]}>
-                        = KES {lineTotal(item).toLocaleString()}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              )}
-            </View>
-          );
-        })}
-
-        <TouchableOpacity style={s.addItemBtn} onPress={() => setItems((p) => [...p, emptyItem()])}>
-          <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-          <Text style={[s.addItemTxt, { color: colors.primary }]}>Add Another Item</Text>
-        </TouchableOpacity>
       </View>
 
       {/* ── Payment Method ── */}
@@ -263,11 +265,11 @@ export default function POSScreen() {
       {/* ── Paper bags ── */}
       <View style={s.section}>
         <Text style={s.sectionTitle}>Paper Bags</Text>
-        <View style={s.qtyRow}>
+        <View style={s.bagRow}>
           <TouchableOpacity style={s.qtyBtn} onPress={() => setPaperBags(String(Math.max(0, parseInt(paperBags) - 1)))}>
             <Text style={s.qtyBtnTxt}>−</Text>
           </TouchableOpacity>
-          <TextInput style={[s.qtyInput, { width: 60 }]} keyboardType="numeric" value={paperBags} onChangeText={setPaperBags} />
+          <TextInput style={s.qtyInput} keyboardType="numeric" value={paperBags} onChangeText={setPaperBags} />
           <TouchableOpacity style={s.qtyBtn} onPress={() => setPaperBags(String((parseInt(paperBags) || 0) + 1))}>
             <Text style={s.qtyBtnTxt}>+</Text>
           </TouchableOpacity>
@@ -281,8 +283,11 @@ export default function POSScreen() {
           <Text style={[s.totalAmount, { color: colors.primary }]}>KES {orderTotal.toLocaleString()}</Text>
         </View>
       )}
-      <TouchableOpacity style={[s.submitBtn, { backgroundColor: colors.primary }]}
-        onPress={handleSubmit} disabled={submitting}>
+      <TouchableOpacity
+        style={[s.submitBtn, { backgroundColor: colors.primary }, !cart.length && { opacity: 0.5 }]}
+        onPress={handleSubmit}
+        disabled={submitting || !cart.length}
+      >
         <Ionicons name="checkmark-circle-outline" size={22} color="#fff" />
         <Text style={s.submitTxt}>{submitting ? "Processing..." : "Complete Sale"}</Text>
       </TouchableOpacity>
@@ -292,7 +297,7 @@ export default function POSScreen() {
         <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setCustModal(false)}>
           <View style={s.modalSheet}>
             <Text style={s.modalTitle}>Select Customer</Text>
-            <TextInput style={s.search} placeholder="Search name or phone..."
+            <TextInput style={s.modalSearch} placeholder="Search name or phone..."
               value={custSearch} onChangeText={setCustSearch} />
             <ScrollView style={{ maxHeight: 320 }}>
               {filteredCustomers.map((c) => (
@@ -319,12 +324,64 @@ export default function POSScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#f9fafb" },
-  title: { fontSize: 20, fontWeight: "800", color: "#111827", padding: 16, paddingBottom: 8 },
-  successBanner: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#dcfce7", marginHorizontal: 16, marginBottom: 8, borderRadius: 10, padding: 12 },
+  root: { flex: 1, backgroundColor: "#f3f4f6" },
+
+  successBanner: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#dcfce7", margin: 12, borderRadius: 10, padding: 12 },
   successTxt: { color: "#166534", fontWeight: "600", flex: 1, fontSize: 13 },
-  section: { backgroundColor: "#fff", marginHorizontal: 12, marginBottom: 10, borderRadius: 14, padding: 14, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#6b7280", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 },
+
+  // Search
+  searchWrap: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", margin: 12, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  searchInput: { flex: 1, fontSize: 14, color: "#111827" },
+
+  // Grid
+  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, gap: 12, marginBottom: 4 },
+  emptyTxt: { color: "#9ca3af", fontSize: 13, textAlign: "center", marginTop: 24, width: "100%" },
+
+  // Card
+  card: {
+    width: CARD_W,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+    position: "relative",
+  },
+  cartBadge: { position: "absolute", top: 10, right: 10, width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", zIndex: 2 },
+  cartBadgeTxt: { color: "#fff", fontSize: 11, fontWeight: "800" },
+  cardImgBox: { backgroundColor: "#f3f4f6", borderRadius: 10, height: 100, alignItems: "center", justifyContent: "center", marginBottom: 10, gap: 4 },
+  noImgTxt: { fontSize: 9, color: "#9ca3af", fontWeight: "700", textAlign: "center", letterSpacing: 0.5 },
+  cardName: { fontSize: 15, fontWeight: "700", color: "#111827", marginBottom: 2 },
+  cardPack: { fontSize: 12, color: "#6b7280", marginBottom: 8 },
+
+  // Price
+  priceRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
+  kshBadge: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
+  kshTxt: { color: "#fff", fontWeight: "800", fontSize: 12 },
+  priceAmt: { fontSize: 18, fontWeight: "800", color: "#111827" },
+
+  // Add to Cart button
+  addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 10, paddingVertical: 10 },
+  addBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 13 },
+
+  // Qty control (in-cart state)
+  qtyControl: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: 1.5, overflow: "hidden" },
+  qtyMinus: { flex: 1, alignItems: "center", paddingVertical: 8 },
+  qtyNum: { flex: 1, textAlign: "center", fontSize: 15, fontWeight: "800" },
+  qtyPlus: { flex: 1, alignItems: "center", paddingVertical: 8, backgroundColor: "#16a34a" },
+  qtySymbol: { fontSize: 18, fontWeight: "700" },
+
+  // Sections
+  section: { backgroundColor: "#fff", marginHorizontal: 12, marginTop: 10, borderRadius: 14, padding: 14, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  sectionTitle: { fontSize: 12, fontWeight: "700", color: "#6b7280", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 },
+
+  // Cart rows
+  cartRow: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  cartItemName: { fontSize: 13, fontWeight: "600", color: "#111827" },
+  cartItemSub: { fontSize: 11, color: "#9ca3af", marginTop: 1 },
+  cartItemTotal: { fontSize: 14, fontWeight: "800" },
 
   // Customer
   customerToggle: { flexDirection: "row", gap: 8, marginBottom: 10 },
@@ -334,71 +391,28 @@ const s = StyleSheet.create({
   debtWarning: { backgroundColor: "#fff7ed", borderRadius: 6, padding: 8, marginTop: 6 },
   debtTxt: { color: "#c2410c", fontSize: 12, fontWeight: "600" },
 
-  // Item block
-  itemBlock: {},
-  itemHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  itemNum: { fontSize: 12, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase" },
-
-  // Card grid
-  cardGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 4 },
-  productCard: {
-    width: CARD_W,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#e5e7eb",
-    padding: 12,
-    alignItems: "center",
-    gap: 6,
-    position: "relative",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  cardIconBox: {
-    width: "100%",
-    height: 70,
-    borderRadius: 10,
-    backgroundColor: "#f3f4f6",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  cardName: { fontSize: 13, fontWeight: "700", color: "#111827", textAlign: "center" },
-  cardPack: { fontSize: 11, color: "#6b7280", textAlign: "center" },
-  priceBadge: { backgroundColor: "#dcfce7", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3, marginTop: 2 },
-  priceBadgeTxt: { fontSize: 12, fontWeight: "700", color: "#16a34a" },
-  checkMark: { position: "absolute", top: 8, right: 8, width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-
-  // Quantity
-  qtySection: { marginTop: 12, backgroundColor: "#f9fafb", borderRadius: 10, padding: 10 },
-  qtyLabel: { fontSize: 11, color: "#9ca3af", fontWeight: "700", textTransform: "uppercase", marginBottom: 6 },
-  qtyRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  qtyBtn: { backgroundColor: "#e5e7eb", width: 34, height: 34, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  qtyBtnTxt: { fontSize: 20, color: "#374151", fontWeight: "700" },
-  qtyInput: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, textAlign: "center", width: 52, backgroundColor: "#fff", fontSize: 15, fontWeight: "700" },
-  lineTotalTxt: { fontSize: 14, fontWeight: "800", marginLeft: 6 },
-
-  addItemBtn: { flexDirection: "row", gap: 6, alignItems: "center", paddingTop: 12, justifyContent: "center" },
-  addItemTxt: { fontWeight: "600", fontSize: 14 },
-
   // Payment
   payGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   payCard: { width: "47%", borderRadius: 12, borderWidth: 1.5, borderColor: "#e5e7eb", backgroundColor: "#fff", padding: 14, alignItems: "center", gap: 6 },
   payCardTxt: { fontSize: 13, color: "#9ca3af", fontWeight: "600" },
 
+  // Paper bags
+  bagRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  qtyBtn: { backgroundColor: "#e5e7eb", width: 34, height: 34, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  qtyBtnTxt: { fontSize: 20, color: "#374151", fontWeight: "700" },
+  qtyInput: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, textAlign: "center", width: 52, backgroundColor: "#fff", fontSize: 15, fontWeight: "700" },
+
   // Total
-  totalBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#fff", marginHorizontal: 12, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 10 },
+  totalBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#fff", marginHorizontal: 12, marginTop: 10, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14 },
   totalLabel: { fontSize: 15, color: "#374151" },
-  totalAmount: { fontSize: 20, fontWeight: "800" },
-  submitBtn: { flexDirection: "row", gap: 8, marginHorizontal: 12, borderRadius: 14, paddingVertical: 16, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  totalAmount: { fontSize: 22, fontWeight: "800" },
+  submitBtn: { flexDirection: "row", gap: 8, marginHorizontal: 12, marginTop: 12, borderRadius: 14, paddingVertical: 16, alignItems: "center", justifyContent: "center" },
   submitTxt: { color: "#fff", fontWeight: "800", fontSize: 16 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalSheet: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, gap: 10, maxHeight: "80%" },
   modalTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
-  search: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13 },
+  modalSearch: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13 },
   custRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f3f4f6", paddingHorizontal: 4, borderRadius: 8 },
 });
