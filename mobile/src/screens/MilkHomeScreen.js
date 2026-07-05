@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
   Modal, TextInput, TouchableWithoutFeedback, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -113,57 +114,59 @@ export default function MilkHomeScreen() {
       })}
       {/* Supplier Registration Modal */}
       <Modal visible={supModal} transparent animationType="slide" onRequestClose={() => setSupModal(false)}>
-        <TouchableWithoutFeedback onPress={() => setSupModal(false)}>
-          <View style={s.modalOverlay} />
-        </TouchableWithoutFeedback>
-        <View style={s.modalSheet}>
-          <View style={s.modalHandle} />
-          <View style={s.modalHeader}>
-            <Text style={s.modalTitle}>Register Supplier</Text>
-            <TouchableOpacity onPress={() => setSupModal(false)}>
-              <Ionicons name="close" size={22} color="#6b7280" />
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <TouchableWithoutFeedback onPress={() => setSupModal(false)}>
+            <View style={s.modalOverlay} />
+          </TouchableWithoutFeedback>
+          <View style={s.modalSheet}>
+            <View style={s.modalHandle} />
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Register Supplier</Text>
+              <TouchableOpacity onPress={() => setSupModal(false)}>
+                <Ionicons name="close" size={22} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.fieldRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.fieldLabel}>First Name *</Text>
+                <TextInput style={s.input} placeholder="e.g. John"
+                  value={supForm.first_name}
+                  onChangeText={(v) => setSupForm((f) => ({ ...f, first_name: v }))} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.fieldLabel}>Last Name</Text>
+                <TextInput style={s.input} placeholder="e.g. Kamau"
+                  value={supForm.last_name}
+                  onChangeText={(v) => setSupForm((f) => ({ ...f, last_name: v }))} />
+              </View>
+            </View>
+
+            <Text style={s.fieldLabel}>Phone Number</Text>
+            <TextInput style={s.input} placeholder="e.g. 2547XXXXXXXX" keyboardType="phone-pad"
+              value={supForm.phone}
+              onChangeText={(v) => setSupForm((f) => ({ ...f, phone: v }))} />
+
+            <Text style={s.fieldLabel}>Goods / Products Supplied</Text>
+            <TextInput
+              style={[s.input, { height: 70, textAlignVertical: "top" }]}
+              placeholder="e.g. Fresh milk, Yoghurt, Cream"
+              multiline
+              value={supForm.goods}
+              onChangeText={(v) => setSupForm((f) => ({ ...f, goods: v }))}
+            />
+
+            <TouchableOpacity
+              style={[s.saveBtn, { backgroundColor: colors.primary }, saving && { opacity: 0.6 }]}
+              onPress={saveSupplier}
+              disabled={saving}
+            >
+              {saving
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={s.saveBtnTxt}>Save Supplier</Text>}
             </TouchableOpacity>
           </View>
-
-          <View style={s.fieldRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.fieldLabel}>First Name *</Text>
-              <TextInput style={s.input} placeholder="e.g. John"
-                value={supForm.first_name}
-                onChangeText={(v) => setSupForm((f) => ({ ...f, first_name: v }))} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.fieldLabel}>Last Name</Text>
-              <TextInput style={s.input} placeholder="e.g. Kamau"
-                value={supForm.last_name}
-                onChangeText={(v) => setSupForm((f) => ({ ...f, last_name: v }))} />
-            </View>
-          </View>
-
-          <Text style={s.fieldLabel}>Phone Number</Text>
-          <TextInput style={s.input} placeholder="e.g. 2547XXXXXXXX" keyboardType="phone-pad"
-            value={supForm.phone}
-            onChangeText={(v) => setSupForm((f) => ({ ...f, phone: v }))} />
-
-          <Text style={s.fieldLabel}>Goods / Products Supplied</Text>
-          <TextInput
-            style={[s.input, { height: 70, textAlignVertical: "top" }]}
-            placeholder="e.g. Fresh milk, Yoghurt, Cream"
-            multiline
-            value={supForm.goods}
-            onChangeText={(v) => setSupForm((f) => ({ ...f, goods: v }))}
-          />
-
-          <TouchableOpacity
-            style={[s.saveBtn, { backgroundColor: colors.primary }, saving && { opacity: 0.6 }]}
-            onPress={saveSupplier}
-            disabled={saving}
-          >
-            {saving
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={s.saveBtnTxt}>Save Supplier</Text>}
-          </TouchableOpacity>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );
@@ -196,8 +199,8 @@ const s = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
   modalSheet: {
     backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    padding: 20, paddingBottom: 36, gap: 10,
-    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, elevation: 10,
+    padding: 20, paddingBottom: 40, gap: 10,
+    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 16, elevation: 12,
   },
   modalHandle: { width: 40, height: 4, backgroundColor: "#d1d5db", borderRadius: 2, alignSelf: "center", marginBottom: 8 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },

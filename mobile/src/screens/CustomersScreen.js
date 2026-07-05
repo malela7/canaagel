@@ -85,11 +85,17 @@ export default function CustomersScreen() {
       {tab === "register" && (
         <ScrollView contentContainerStyle={s.form}>
           <Text style={s.sectionTitle}>New Customer</Text>
-          <TextInput style={s.input} placeholder="Customer name *"
+
+          <Text style={s.label}>Customer Name <Text style={{ color: "#dc2626" }}>*</Text></Text>
+          <TextInput style={s.input} placeholder="Enter full name"
             value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
-          <TextInput style={s.input} placeholder="Phone (2547XXXXXXXX)" keyboardType="phone-pad"
+
+          <Text style={s.label}>Phone Number</Text>
+          <TextInput style={s.input} placeholder="2547XXXXXXXX" keyboardType="phone-pad"
             value={form.phone_number} onChangeText={(v) => setForm({ ...form, phone_number: v })} />
-          <TextInput style={s.input} placeholder="Address / House No."
+
+          <Text style={s.label}>Address / House No.</Text>
+          <TextInput style={s.input} placeholder="e.g. House 12, Westlands"
             value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} />
 
           <Text style={s.label}>Payment Schedule</Text>
@@ -98,8 +104,11 @@ export default function CustomersScreen() {
             <Text style={{ color: "#9ca3af", fontSize: 11 }}>tap to change</Text>
           </TouchableOpacity>
 
+          <Text style={s.label}>Track Bottles</Text>
           <View style={s.switchRow}>
-            <Text style={s.label}>Track Bottles</Text>
+            <Text style={{ fontSize: 13, color: "#374151" }}>
+              {form.bottle_tracking ? "Enabled — bottles will be tracked" : "Disabled"}
+            </Text>
             <Switch value={form.bottle_tracking}
               onValueChange={(v) => setForm({ ...form, bottle_tracking: v })}
               trackColor={{ false: "#d1d5db", true: colors.primary }}
